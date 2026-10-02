@@ -14,9 +14,11 @@ import Quickshell.Wayland
 import "CheatsheetData.js" as CheatsheetData
 
 /**
- * Full-screen keybind cheatsheet: categories as cards in a masonry grid,
- * with a filter field at the bottom. Toggle with the "cheatsheetToggle"
- * global shortcut (Super + / by default) or `qs ipc call cheatsheet toggle`.
+ * Cheat sheet (window or full screen) with two tabs:
+ *  - Keybinds: categories as cards in a masonry grid, filter field at the bottom
+ *  - System: PC specs and live usage/temperatures (SystemInfoPage.qml)
+ * Toggle with the "cheatsheetToggle" global shortcut (Super + / by default) or
+ * `qs ipc call cheatsheet toggle|keybinds|system`. Ctrl+Tab switches tabs.
  */
 Scope {
     id: root
@@ -30,6 +32,12 @@ Scope {
     })
     readonly property bool splitButtons: Config.options.cheatsheet.splitButtons
     readonly property bool fullscreen: Config.options.cheatsheet.displayMode === "fullscreen"
+    // 0 = Keybinds, 1 = System. Kept between openings.
+    property int currentTab: 0
+    readonly property var tabs: [
+        { "name": Translation.tr("Keybinds"), "icon": "keyboard" },
+        { "name": Translation.tr("System"), "icon": "monitor_heart" }
+    ]
     readonly property int keyFontSize: Config.options.cheatsheet.fontSize.key
     readonly property int commentFontSize: Config.options.cheatsheet.fontSize.comment
 
@@ -103,7 +111,12 @@ Scope {
                 property real naturalHeight: 0
                 readonly property real wantedHeight: 16 + titleBar.implicitHeight + 14 + columnsRow.implicitHeight + 14 + filterBar.implicitHeight + 16
                 onWantedHeightChanged: if (panelWindow.query.length === 0) naturalHeight = wantedHeight
-                height: root.fullscreen ? parent.height : Math.min(parent.height - 100, Math.max(naturalHeight, 360))
+                readonly property real systemHeight: 16 + titleBar.implicitHeight + 14 + systemPage.implicitHeight + 20
+                height: root.fullscreen ? parent.height : Math.min(parent.height - 100, Math.max(root.currentTab === 1 ? systemHeight : naturalHeight, 360))
+                Behavior on height {
+                    enabled: !root.fullscreen
+                    NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                }
                 radius: root.fullscreen ? 0 : Appearance.rounding.windowRounding
                 color: root.fullscreen ? "transparent" : Appearance.colors.colLayer0
                 border.width: root.fullscreen ? 0 : 1
@@ -129,8 +142,23 @@ Scope {
                     NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
                 }
 
+                function switchTab(delta) {
+                    root.currentTab = (root.currentTab + delta + root.tabs.length) % root.tabs.length;
+                    if (root.currentTab === 0) filterField.forceActiveFocus();
+                    else content.forceActiveFocus();
+                }
+                // Ctrl+Tab / Ctrl+PgUp/PgDn switch tabs (also while typing in the filter)
+                function handleTabKeys(event) {
+                    if (!(event.modifiers & Qt.ControlModifier)) return false;
+                    if (event.key === Qt.Key_Tab || event.key === Qt.Key_PageDown) { switchTab(1); return true; }
+                    if (event.key === Qt.Key_Backtab || event.key === Qt.Key_PageUp) { switchTab(-1); return true; }
+                    return false;
+                }
+
                 Keys.onPressed: event => {
-                    if (event.key === Qt.Key_Escape) {
+                    if (content.handleTabKeys(event)) {
+                        event.accepted = true;
+                    } else if (event.key === Qt.Key_Escape) {
                         panelWindow.hide();
                         event.accepted = true;
                     }
@@ -146,19 +174,25 @@ Scope {
                     }
                     enableShadow: false
                     colBackground: Appearance.colors.colLayer1
-                    RowLayout {
-                        spacing: 8
-                        Layout.leftMargin: 12
-                        Layout.rightMargin: 14
-                        MaterialSymbol {
-                            text: "keyboard"
-                            iconSize: 22
-                            color: Appearance.colors.colOnLayer0
+                    ToolbarTabBar {
+                        id: tabBar
+                        tabButtonList: root.tabs
+                        // Ignore index changes emitted while the bar is being built
+                        property bool ready: false
+                        Component.onCompleted: {
+                            setCurrentIndex(root.currentTab);
+                            ready = true;
                         }
-                        StyledText {
-                            text: Translation.tr("Keybinds")
-                            color: Appearance.colors.colOnLayer0
-                            font.pixelSize: Appearance.font.pixelSize.normal
+                        Connections {
+                            target: root
+                            function onCurrentTabChanged() {
+                                if (tabBar.currentIndex !== root.currentTab) tabBar.setCurrentIndex(root.currentTab);
+                            }
+                        }
+                        onCurrentIndexChanged: if (ready && root.currentTab !== currentIndex) {
+                            root.currentTab = currentIndex;
+                            if (currentIndex === 0) filterField.forceActiveFocus();
+                            else content.forceActiveFocus();
                         }
                     }
                 }
@@ -187,6 +221,7 @@ Scope {
                 // Cards
                 StyledFlickable {
                     id: flickable
+                    visible: root.currentTab === 0
                     anchors {
                         top: titleBar.bottom
                         bottom: filterBar.top
@@ -240,9 +275,35 @@ Scope {
                     }
                 }
 
+                // System info
+                StyledFlickable {
+                    id: systemFlickable
+                    visible: root.currentTab === 1
+                    anchors {
+                        top: titleBar.bottom
+                        bottom: parent.bottom
+                        left: parent.left
+                        right: parent.right
+                        topMargin: 14
+                        bottomMargin: 14
+                        leftMargin: 14
+                        rightMargin: 14
+                    }
+                    clip: true
+                    contentWidth: width
+                    contentHeight: systemPage.implicitHeight
+                    SystemInfoPage {
+                        id: systemPage
+                        width: systemFlickable.width
+                        // Only poll sensors while the tab is on screen
+                        active: root.currentTab === 1
+                    }
+                }
+
                 // Filter
                 Toolbar {
                     id: filterBar
+                    visible: root.currentTab === 0
                     anchors {
                         bottom: parent.bottom
                         horizontalCenter: parent.horizontalCenter
@@ -264,7 +325,9 @@ Scope {
                         text: panelWindow.query
                         onTextChanged: panelWindow.query = text
                         Keys.onPressed: event => {
-                            if (event.key === Qt.Key_Escape) {
+                            if (content.handleTabKeys(event)) {
+                                event.accepted = true;
+                            } else if (event.key === Qt.Key_Escape) {
                                 if (text.length > 0) text = "";
                                 else panelWindow.hide();
                                 event.accepted = true;
@@ -449,6 +512,14 @@ Scope {
         }
         function close(): void {
             GlobalStates.cheatsheetOpen = false;
+        }
+        function keybinds(): void {
+            root.currentTab = 0;
+            GlobalStates.cheatsheetOpen = true;
+        }
+        function system(): void {
+            root.currentTab = 1;
+            GlobalStates.cheatsheetOpen = true;
         }
     }
 
