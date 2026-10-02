@@ -36,6 +36,11 @@ Singleton {
     property int manualActiveMinute
 
     onClockMinuteChanged: reEvaluate()
+    // The night light always starts off (PC boot or shell restart), even inside the
+    // automatic schedule. Auto mode takes over again once the schedule is outside its
+    // window (so it turns on at the next start time), or as soon as you toggle it.
+    property bool startupOff: false
+
     onAutomaticChanged: {
         root.manualActive = undefined;
         root.firstEvaluation = true;
@@ -76,6 +81,10 @@ Singleton {
     function ensureState() {
         if (!root.automatic || root.manualActive !== undefined)
             return;
+        if (root.startupOff) {
+            if (root.shouldBeOn) return;
+            root.startupOff = false;
+        }
         if (root.shouldBeOn) {
             root.enableTemperature();
         } else {
@@ -95,6 +104,7 @@ Singleton {
         }
         Quickshell.execDetached(["bash", "-c", `pidof hyprsunset || hyprsunset & disown; sleep 0.3; hyprctl hyprsunset identity`]);
         root.temperatureActive = false;
+        root.startupOff = true;
     }
 
     function enableTemperature() {
@@ -141,9 +151,11 @@ Singleton {
     function fetchState() {
         if (root.isNiri) {
             niriFetchProc.running = true;
-        } else {
-            fetchProc.running = true;
         }
+        // Hyprland: the shell's own state is the source of truth. load() resets the
+        // screen to normal colors at startup, and hyprsunset keeps reporting the last
+        // temperature (e.g. 5000) even after "identity", so asking it would show the
+        // night light as ON when it isn't.
     }
 
     Process {
@@ -175,6 +187,7 @@ Singleton {
     }
 
     function toggleTemperature(active = undefined) {
+        root.startupOff = false;
         if (root.manualActive === undefined) {
             root.manualActive = root.temperatureActive;
             root.manualActiveHour = root.clockHour;
