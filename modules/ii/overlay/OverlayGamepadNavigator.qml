@@ -30,7 +30,8 @@ Item {
 
     // ---- target discovery
     function isButton(item) {
-        return typeof item.click === "function" && item.buttonRadius !== undefined;
+        // Any Qt Quick button: RippleButton, tab buttons (Output/Input, CPU/RAM/Swap…), switches
+        return typeof item.click === "function" && item.checkable !== undefined && item.pressed !== undefined;
     }
     function isSlider(item) {
         return typeof item.increase === "function" && item.stepSize !== undefined && item.orientation !== undefined;
@@ -95,24 +96,36 @@ Item {
             return;
         }
         const from = centerOf(root.current);
-        let best = null;
-        let bestScore = Infinity;
-        for (const t of list) {
-            if (t === root.current) continue;
-            const c = centerOf(t);
-            const dx = c.x - from.x;
-            const dy = c.y - from.y;
-            let primary, secondary;
-            switch (direction) {
-                case "right": primary = dx; secondary = dy; break;
-                case "left": primary = -dx; secondary = dy; break;
-                case "down": primary = dy; secondary = dx; break;
-                default: primary = -dy; secondary = dx; break;
+        const horizontal = direction === "left" || direction === "right";
+        // First look only at targets in the same row (or column); if there are none,
+        // fall back to anything in that direction. Avoids e.g. "right" on the last
+        // tab jumping up to a title bar button.
+        const pick = aligned => {
+            let best = null;
+            let bestScore = Infinity;
+            for (const t of list) {
+                if (t === root.current) continue;
+                const c = centerOf(t);
+                const dx = c.x - from.x;
+                const dy = c.y - from.y;
+                let primary, secondary;
+                switch (direction) {
+                    case "right": primary = dx; secondary = dy; break;
+                    case "left": primary = -dx; secondary = dy; break;
+                    case "down": primary = dy; secondary = dx; break;
+                    default: primary = -dy; secondary = dx; break;
+                }
+                if (primary <= 4) continue;
+                if (aligned) {
+                    const reach = horizontal ? (root.current.height + t.height) / 2 : (root.current.width + t.width) / 2;
+                    if (Math.abs(secondary) > reach) continue;
+                }
+                const score = primary + 2.5 * Math.abs(secondary);
+                if (score < bestScore) { bestScore = score; best = t; }
             }
-            if (primary <= 4) continue;
-            const score = primary + 2.5 * Math.abs(secondary);
-            if (score < bestScore) { bestScore = score; best = t; }
-        }
+            return best;
+        };
+        const best = pick(true) ?? pick(false);
         if (best) root.current = best;
     }
     function activate() {
