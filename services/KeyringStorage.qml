@@ -63,6 +63,24 @@ Singleton {
         saveKeyringData();
     }
 
+    // Like setNestedField, but waits for the keyring to be read first so
+    // other stored secrets are never overwritten with an empty object.
+    property var pendingWrites: []
+    function setNestedFieldSafely(path, value) {
+        if (root.loaded) {
+            root.setNestedField(path, value);
+            return;
+        }
+        root.pendingWrites = [...root.pendingWrites, { path: path, value: value }];
+        root.fetchKeyringData();
+    }
+    onLoadedChanged: {
+        if (!root.loaded || root.pendingWrites.length === 0) return;
+        const writes = root.pendingWrites;
+        root.pendingWrites = [];
+        for (const write of writes) root.setNestedField(write.path, write.value);
+    }
+
     function fetchKeyringData() {
         // console.log("[KeyringStorage] Fetching keyring data...");
         // console.log("[KeyringStorage] getData command:'" + getData.command.join("' '") + "'");

@@ -753,6 +753,12 @@ ContentPage {
                         }
                     }
                 }
+
+                GroupedList {
+                    Layout.topMargin: 6
+                    visible: Config.options.background.widgets.clock.cookie.aiStyling
+                    GeminiApiKeyField {}
+                }
             }
 
             GroupedList {
