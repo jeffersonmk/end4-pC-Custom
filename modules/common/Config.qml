@@ -595,6 +595,20 @@ Singleton {
                 property string locale: "en-GB"
             }
 
+            property JsonObject cheatsheet: JsonObject {
+                // Symbol shown for the Super key. Empty = default Material icon.
+                // Nerd Font glyphs work here (e.g. 󰖳  󰌽  󰣇 ⌘)
+                property string superKey: ""
+                property bool useMacSymbol: false
+                property bool splitButtons: false
+                property bool useMouseSymbol: false
+                property bool useFnSymbol: false
+                property JsonObject fontSize: JsonObject {
+                    property int key: 12
+                    property int comment: 12
+                }
+            }
+
             property JsonObject conflictKiller: JsonObject {
                 property bool autoKillNotificationDaemons: false
                 property bool autoKillTrays: false
@@ -793,7 +807,6 @@ Singleton {
                     property string app: ">"
                     property string clipboard: ";"
                     property string emojis: ":"
-                    property string keybinds: "<"
                     property string symbols: "."
                     property string math: "="
                     property string shellCommand: "$"

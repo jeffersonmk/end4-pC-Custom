@@ -263,7 +263,7 @@ RippleButton {
         // Action text
         StyledText {
             Layout.fillWidth: false
-            visible: !root.hasControl && (root.selected || root.itemType === Translation.tr("Keybind"))
+            visible: !root.hasControl && root.selected
             id: clickAction
             font.pixelSize: Appearance.font.pixelSize.normal
             color: Appearance.colors.colOnPrimaryContainer

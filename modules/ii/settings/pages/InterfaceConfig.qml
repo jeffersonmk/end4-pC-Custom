@@ -621,6 +621,112 @@ ContentPage {
         }
 
         ContentSection {
+            icon: "keyboard"
+            title: Translation.tr("Cheat sheet")
+            shape: MaterialShape.Shape.Cookie4Sided
+
+            ContentSubsection {
+                title: Translation.tr("Super key symbol")
+                tooltip: Translation.tr("Shown in place of Super in the keybind cheat sheet (Super + /).\nYou can also edit cheatsheet.superKey in the config file")
+                GroupedList {
+                    ConfigSelectionArray {
+                        currentValue: Config.options.cheatsheet.superKey
+                        onSelected: newValue => { Config.options.cheatsheet.superKey = newValue }
+                        // Nerd Font glyphs; the first option keeps the default icon
+                        options: [
+                            { "displayName": Translation.tr("Default"), "icon": "keyboard_command_key", "value": "" },
+                            { "displayName": "󰖳", "value": "󰖳" },
+                            { "displayName": "", "value": "" },
+                            { "displayName": "󰨡", "value": "󰨡" },
+                            { "displayName": "", "value": "" },
+                            { "displayName": "󰌽", "value": "󰌽" },
+                            { "displayName": "󰣇", "value": "󰣇" },
+                            { "displayName": "", "value": "" },
+                            { "displayName": "", "value": "" },
+                            { "displayName": "", "value": "" },
+                            { "displayName": "", "value": "" },
+                            { "displayName": "", "value": "" },
+                            { "displayName": "󱄛", "value": "󱄛" },
+                            { "displayName": "", "value": "" },
+                            { "displayName": "", "value": "" },
+                            { "displayName": "", "value": "" },
+                            { "displayName": "⌘", "value": "⌘" },
+                            { "displayName": "󰀲", "value": "󰀲" },
+                            { "displayName": "󰟍", "value": "󰟍" },
+                            { "displayName": "", "value": "" }
+                        ]
+                    }
+                }
+            }
+
+            ContentSubsection {
+                title: Translation.tr("Keys")
+                GroupedList {
+                    ConfigSwitch {
+                        buttonIcon: "keyboard_option_key"
+                        text: Translation.tr("Use macOS-like symbols for mod keys")
+                        checked: Config.options.cheatsheet.useMacSymbol
+                        onCheckedChanged: { Config.options.cheatsheet.useMacSymbol = checked }
+                        StyledToolTip {
+                            text: Translation.tr("e.g. 󰘴 for Ctrl, 󰘵 for Alt, 󰘶 for Shift")
+                        }
+                    }
+                    ConfigSwitch {
+                        buttonIcon: "function"
+                        text: Translation.tr("Use symbols for function keys")
+                        checked: Config.options.cheatsheet.useFnSymbol
+                        onCheckedChanged: { Config.options.cheatsheet.useFnSymbol = checked }
+                        StyledToolTip {
+                            text: Translation.tr("e.g. 󱊫 for F1, 󱊶 for F12")
+                        }
+                    }
+                    ConfigSwitch {
+                        buttonIcon: "mouse"
+                        text: Translation.tr("Use symbols for mouse")
+                        checked: Config.options.cheatsheet.useMouseSymbol
+                        onCheckedChanged: { Config.options.cheatsheet.useMouseSymbol = checked }
+                        StyledToolTip {
+                            text: Translation.tr("e.g. L󰍽 for left click, R󰍽 for right click, 󱕒 for scroll")
+                        }
+                    }
+                    ConfigSwitch {
+                        buttonIcon: "highlight_keyboard_focus"
+                        text: Translation.tr("Split buttons")
+                        checked: Config.options.cheatsheet.splitButtons
+                        onCheckedChanged: { Config.options.cheatsheet.splitButtons = checked }
+                        StyledToolTip {
+                            text: Translation.tr("One keycap per key with \"+\" between them, instead of a single pill")
+                        }
+                    }
+                }
+            }
+
+            ContentSubsection {
+                title: Translation.tr("Font size")
+                GroupedList {
+                    ConfigSpinBox {
+                        icon: "keyboard_keys"
+                        text: Translation.tr("Keybind font size")
+                        value: Config.options.cheatsheet.fontSize.key
+                        from: 8
+                        to: 30
+                        stepSize: 1
+                        onValueChanged: { Config.options.cheatsheet.fontSize.key = value }
+                    }
+                    ConfigSpinBox {
+                        icon: "text_fields"
+                        text: Translation.tr("Description font size")
+                        value: Config.options.cheatsheet.fontSize.comment
+                        from: 8
+                        to: 30
+                        stepSize: 1
+                        onValueChanged: { Config.options.cheatsheet.fontSize.comment = value }
+                    }
+                }
+            }
+        }
+
+        ContentSection {
             icon: "call_to_action"
             title: Translation.tr("Dock")
             shape: MaterialShape.Shape.Cookie6Sided

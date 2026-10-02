@@ -21,6 +21,17 @@ import "CheatsheetData.js" as CheatsheetData
 Scope {
     id: root
 
+    // Appearance options (Settings > Interface > Cheat sheet)
+    readonly property var displayOptions: ({
+        superKey: Config.options.cheatsheet.superKey,
+        useMacSymbol: Config.options.cheatsheet.useMacSymbol,
+        useFnSymbol: Config.options.cheatsheet.useFnSymbol,
+        useMouseSymbol: Config.options.cheatsheet.useMouseSymbol,
+    })
+    readonly property bool splitButtons: Config.options.cheatsheet.splitButtons
+    readonly property int keyFontSize: Config.options.cheatsheet.fontSize.key
+    readonly property int commentFontSize: Config.options.cheatsheet.fontSize.comment
+
     readonly property var categories: CheatsheetData.build([
         { tree: HyprlandKeybinds.defaultKeybinds, fallbackCategory: "Shell" },
         { tree: HyprlandKeybinds.userKeybinds, fallbackCategory: "Custom" },
@@ -309,7 +320,7 @@ Scope {
                         KeyCombo {
                             id: keysRow
                             anchors.verticalCenter: parent.verticalCenter
-                            keys: bindRow.modelData.keys
+                            keys: CheatsheetData.displayParts(bindRow.modelData, root.displayOptions)
                         }
                         StyledText {
                             anchors.verticalCenter: parent.verticalCenter
@@ -317,7 +328,7 @@ Scope {
                             elide: Text.ElideRight
                             text: bindRow.modelData.description
                             color: Appearance.colors.colOnLayer0
-                            font.pixelSize: Appearance.font.pixelSize.smaller
+                            font.pixelSize: root.commentFontSize
                         }
                     }
                 }
@@ -325,44 +336,71 @@ Scope {
         }
     }
 
-    component KeyCombo: Rectangle {
+    // Keycaps for one shortcut: a single pill, or one pill per key with "+"
+    // between them when "Split buttons" is on.
+    component KeyCombo: Row {
         id: combo
         property var keys: []
-        implicitHeight: 24
-        implicitWidth: comboRow.implicitWidth + 16
-        radius: Appearance.rounding.full
-        color: Appearance.colors.colSecondaryContainer
+        spacing: root.splitButtons ? 3 : 0
 
-        Row {
-            id: comboRow
-            anchors.centerIn: parent
-            spacing: 5
-            Repeater {
-                model: combo.keys
-                delegate: Item {
-                    id: keyItem
-                    required property string modelData
-                    readonly property bool isSuper: modelData === "SUPER"
-                    anchors.verticalCenter: parent?.verticalCenter
-                    implicitWidth: isSuper ? superIcon.implicitWidth : keyText.implicitWidth
-                    implicitHeight: 18
-                    MaterialSymbol {
-                        id: superIcon
-                        visible: keyItem.isSuper
+        Repeater {
+            model: root.splitButtons ? combo.keys.map(k => [k]) : [combo.keys]
+            delegate: Row {
+                id: group
+                required property var modelData
+                required property int index
+                anchors.verticalCenter: parent?.verticalCenter
+                spacing: 3
+
+                StyledText {
+                    visible: group.index > 0
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "+"
+                    color: Appearance.colors.colSubtext
+                    font.pixelSize: root.keyFontSize
+                }
+
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    implicitHeight: Math.max(24, root.keyFontSize + 12)
+                    implicitWidth: pillRow.implicitWidth + 16
+                    radius: root.splitButtons ? Appearance.rounding.verysmall : Appearance.rounding.full
+                    color: Appearance.colors.colSecondaryContainer
+
+                    Row {
+                        id: pillRow
                         anchors.centerIn: parent
-                        text: "keyboard_command_key"
-                        iconSize: 15
-                        color: Appearance.colors.colOnSecondaryContainer
-                    }
-                    StyledText {
-                        id: keyText
-                        visible: !keyItem.isSuper
-                        anchors.centerIn: parent
-                        text: keyItem.modelData
-                        color: Appearance.colors.colOnSecondaryContainer
-                        font.family: Appearance.font.family.monospace
-                        font.pixelSize: Appearance.font.pixelSize.smaller
-                        font.weight: Font.Bold
+                        spacing: 5
+                        Repeater {
+                            model: group.modelData
+                            delegate: Item {
+                                id: keyItem
+                                required property string modelData
+                                readonly property bool isSuper: modelData === "SUPER"
+                                anchors.verticalCenter: parent?.verticalCenter
+                                implicitWidth: isSuper ? superIcon.implicitWidth : keyText.implicitWidth
+                                implicitHeight: Math.max(18, root.keyFontSize + 6)
+                                MaterialSymbol {
+                                    id: superIcon
+                                    visible: keyItem.isSuper
+                                    anchors.centerIn: parent
+                                    text: "keyboard_command_key"
+                                    iconSize: root.keyFontSize + 3
+                                    color: Appearance.colors.colOnSecondaryContainer
+                                }
+                                StyledText {
+                                    id: keyText
+                                    visible: !keyItem.isSuper
+                                    anchors.centerIn: parent
+                                    text: keyItem.modelData
+                                    color: Appearance.colors.colOnSecondaryContainer
+                                    // Nerd Font so symbols (super key, macOS mods, F-keys, mouse) render
+                                    font.family: Appearance.font.family.iconNerd
+                                    font.pixelSize: root.keyFontSize
+                                    font.weight: Font.Bold
+                                }
+                            }
+                        }
                     }
                 }
             }
