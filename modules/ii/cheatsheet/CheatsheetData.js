@@ -137,6 +137,9 @@ function splitCategory(comment) {
     return { prefix: comment.slice(0, idx).trim(), text: comment.slice(idx + 1).trim() };
 }
 
+// trees: [{ tree, fallbackCategory }], in load order. A key combo bound in a
+// later tree (e.g. ~/.config/hypr/custom/keybinds.lua) replaces the same combo
+// from earlier trees, like Hyprland does when the user rebinds it.
 function build(trees) {
     const categories = [];
     const byName = {};
@@ -153,7 +156,12 @@ function build(trees) {
         byName[categoryName].binds.push({ mods: mods, key: key, description: description });
     }
 
-    function walk(node, sectionName, fallbackCategory) {
+    function comboId(mods, key) {
+        return mods.join("+") + "+" + String(key).toUpperCase();
+    }
+
+    // Flatten every tree into entries first, so later trees can override earlier ones
+    function collect(node, sectionName, fallbackCategory, treeIndex, out) {
         const name = (node?.name ?? "").trim();
         const section = name.length > 0 ? name : sectionName;
         for (const bind of (node?.keybinds ?? [])) {
@@ -181,12 +189,31 @@ function build(trees) {
             if (orderedMods.includes("SUPER") && /^SUPER_[LR]$/i.test(key)) key = "";
             if (orderedMods.length === 0 && key.length === 0) continue;
 
-            add(category, orderedMods, key, split.text.length > 0 ? split.text : comment);
+            out.push({
+                category: category,
+                mods: orderedMods,
+                key: key,
+                description: split.text.length > 0 ? split.text : comment,
+                treeIndex: treeIndex,
+                // "comment" binds document a whole group (e.g. Super + 1-9) and never override
+                combo: bind.dispatcher === "comment" ? null : comboId(orderedMods, key),
+            });
         }
-        for (const child of (node?.children ?? [])) walk(child, section, fallbackCategory);
+        for (const child of (node?.children ?? [])) collect(child, section, fallbackCategory, treeIndex, out);
     }
 
-    for (const entry of trees) walk(entry.tree, "", entry.fallbackCategory);
+    const entries = [];
+    trees.forEach((entry, index) => collect(entry.tree, "", entry.fallbackCategory, index, entries));
+
+    // Last tree that binds each combo wins
+    const owner = {};
+    for (const e of entries) {
+        if (e.combo) owner[e.combo] = Math.max(owner[e.combo] ?? -1, e.treeIndex);
+    }
+    for (const e of entries) {
+        if (e.combo && owner[e.combo] > e.treeIndex) continue;
+        add(e.category, e.mods, e.key, e.description);
+    }
     return categories.filter(c => c.binds.length > 0);
 }
 
