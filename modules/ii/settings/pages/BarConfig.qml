@@ -8,6 +8,7 @@ import Quickshell.Hyprland
 
 ContentPage {
     id: page
+    readonly property bool defaultWorkspacesDesign: (Config.options.bar.workspaces.style ?? "default") === "default"
     forceWidth: true
 
     readonly property color leftIconColor: {
@@ -633,12 +634,35 @@ ContentPage {
             shape: MaterialShape.Shape.Cookie12Sided
             icon: "steppers"; title: Translation.tr("Workspaces")
             GroupedList {
+                ConfigSelectionArray {
+                    text: Translation.tr("Style")
+                    icon: "style"
+                    currentValue: Config.options.bar.workspaces.style ?? "default"
+                    onSelected: newValue => {
+                        Config.options.bar.workspaces.style = newValue
+                    }
+                    options: [
+                        { displayName: Translation.tr("Default"), icon: "view_carousel",         value: "default" },
+                        { displayName: Translation.tr("GNOME"),   icon: "more_horiz",            value: "gnome" },
+                        { displayName: Translation.tr("Dots"),    icon: "hdr_weak",               value: "dots" },
+                        { displayName: Translation.tr("Ticks"),   icon: "more_vert",             value: "ticks" }
+                    ]
+                }
+                ConfigSpinBox {
+                    icon: "view_column"; text: Translation.tr("Workspaces shown")
+                    value: Config.options.bar.workspaces.shown
+                    from: 1; to: 30
+                    onValueChanged: { Config.options.bar.workspaces.shown = value; }
+                }
                 ConfigSwitch {
+                    enabled: page.defaultWorkspacesDesign
                     buttonIcon: "counter_1"; text: Translation.tr("Always show numbers")
                     checked: Config.options.bar.workspaces.alwaysShowNumbers
                     onCheckedChanged: { Config.options.bar.workspaces.alwaysShowNumbers = checked; }
                 }
                 ConfigSelectionArray {
+                    enabled: page.defaultWorkspacesDesign
+                    opacity: page.defaultWorkspacesDesign ? 1 : 0.5
                     text: Translation.tr("Numbers style")
                     icon: "looks_3"
                     currentValue: JSON.stringify(Config.options.bar.workspaces.numberMap)
@@ -652,17 +676,14 @@ ContentPage {
                     ]
                 }
                 ConfigSwitch {
+                    enabled: page.defaultWorkspacesDesign
                     buttonIcon: "award_star"; text: Translation.tr("Show app icons")
                     checked: Config.options.bar.workspaces.showAppIcons
                     onCheckedChanged: { Config.options.bar.workspaces.showAppIcons = checked; }
                 }
-                ConfigSpinBox {
-                    icon: "view_column"; text: Translation.tr("Workspaces shown")
-                    value: Config.options.bar.workspaces.shown
-                    from: 1; to: 30
-                    onValueChanged: { Config.options.bar.workspaces.shown = value; }
-                }
                 ConfigSelectionArray {
+                    enabled: page.defaultWorkspacesDesign
+                    opacity: page.defaultWorkspacesDesign ? 1 : 0.5
                     text: Translation.tr("Indicator style")
                     icon: "page_control"
                     currentValue: Config.options.bar.workspaces.indicatorStyle ?? "icon"

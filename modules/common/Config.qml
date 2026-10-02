@@ -324,6 +324,7 @@ Singleton {
                         property real y: 100
                         property real z: 0
                         property string sizeMode: "2x2"
+                        property bool vertical: false
                         property int clockCount: 4 
                     }
 
@@ -542,6 +543,7 @@ Singleton {
                     property int shown: 10
                     property bool showAppIcons: false
                     property string indicatorStyle: "dot" // "dot" or "icon"
+                    property string style: "default" // "default", "gnome", "dots", "ticks"
                     property bool alwaysShowNumbers: true
                     property int showNumberDelay: 300 // milliseconds
                     property list<string> numberMap: ["1", "2"] // Characters to show instead of numbers on workspace indicator
@@ -894,6 +896,8 @@ Singleton {
 
             property JsonObject screenRecord: JsonObject {
                 property string savePath: Directories.videos.replace("file://","") // strip "file://"
+                property bool systemAudio: false
+                property bool microphone: false
             }
 
             property JsonObject screenSnip: JsonObject {
