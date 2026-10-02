@@ -607,6 +607,15 @@ Singleton {
                 }
             }
 
+            // Gamepad shortcut: a controller button runs a shell action (services/Gamepad.qml)
+            property JsonObject gamepad: JsonObject {
+                property bool enable: false
+                // evdev button name; BTN_MODE = Xbox/PS "home" button
+                property string button: "BTN_MODE"
+                // Any GlobalStates.hotCornerOptions value; overlayOpen = same as Super + G
+                property string action: "overlayOpen"
+            }
+
             property JsonObject conflictKiller: JsonObject {
                 property bool autoKillNotificationDaemons: false
                 property bool autoKillTrays: false

@@ -1,3 +1,4 @@
+import qs
 import QtQuick
 import QtQuick.Layouts
 import qs.services
@@ -295,6 +296,100 @@ ContentPage {
                     stepSize: 60
                     onValueChanged: {
                         Config.options.updates.checkInterval = value;
+                    }
+                }
+            }
+        }
+
+        ContentSection {
+            icon: "sports_esports"
+            shape: MaterialShape.Shape.Cookie6Sided
+            title: Translation.tr("Gamepad")
+
+            GroupedList {
+                ConfigSwitch {
+                    buttonIcon: "sports_esports"
+                    text: Translation.tr("Open a panel with a controller button")
+                    checked: Config.options.gamepad.enable
+                    onCheckedChanged: { Config.options.gamepad.enable = checked }
+                    StyledToolTip {
+                        text: Translation.tr("Watches connected game controllers (USB or Bluetooth).\nGames still receive every button as usual.")
+                    }
+                }
+                ConfigComboBox {
+                    Layout.fillWidth: true
+                    enabled: Config.options.gamepad.enable
+                    buttonIcon: "open_in_new"
+                    text: Translation.tr("Action")
+                    textRole: "displayName"
+                    model: GlobalStates.hotCornerOptions.filter(o => o.value !== "none")
+                    currentValue: Config.options.gamepad.action
+                    onSelected: newValue => { Config.options.gamepad.action = newValue }
+                }
+            }
+
+            ContentSubsection {
+                title: Translation.tr("Button")
+                tooltip: Translation.tr("Click \"Pick\" and press the button you want on the controller")
+                enabled: Config.options.gamepad.enable
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    MaterialSymbol {
+                        text: "gamepad"
+                        iconSize: 22
+                        color: Appearance.colors.colOnLayer1
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        text: Gamepad.learning ? Translation.tr("Press a button on the controller…")
+                            : Gamepad.buttonLabel(Config.options.gamepad.button)
+                        color: Gamepad.learning ? Appearance.colors.colPrimary : Appearance.colors.colOnLayer1
+                    }
+                    RippleButtonWithIcon {
+                        materialIcon: Gamepad.learning ? "close" : "ads_click"
+                        mainText: Gamepad.learning ? Translation.tr("Cancel") : Translation.tr("Pick")
+                        enabled: Gamepad.learning || Gamepad.devices.length > 0
+                        onClicked: Gamepad.learning ? Gamepad.cancelLearning() : Gamepad.startLearning()
+                    }
+                    RippleButtonWithIcon {
+                        visible: Config.options.gamepad.button !== "BTN_MODE" && !Gamepad.learning
+                        materialIcon: "restart_alt"
+                        mainText: Translation.tr("Default")
+                        onClicked: Config.options.gamepad.button = "BTN_MODE"
+                    }
+                }
+            }
+
+            ContentSubsection {
+                title: Translation.tr("Status")
+                visible: Config.options.gamepad.enable
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    MaterialSymbol {
+                        Layout.alignment: Qt.AlignTop
+                        text: Gamepad.error !== "" ? "error" : Gamepad.devices.length > 0 ? "check_circle" : "videogame_asset_off"
+                        iconSize: 22
+                        color: Gamepad.error !== "" ? Appearance.colors.colError : Appearance.colors.colOnLayer1
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        color: Appearance.colors.colOnLayer1
+                        text: {
+                            switch (Gamepad.error) {
+                            case "no_evdev": return Translation.tr("The python-evdev package is missing. Install it (Arch: sudo pacman -S python-evdev) and toggle this off and on.");
+                            case "no_permission": return Translation.tr("No permission to read controllers. Add your user to the \"input\" group (sudo usermod -aG input $USER) and log in again.");
+                            case "crashed": return Translation.tr("The controller listener stopped unexpectedly; retrying…");
+                            }
+                            if (Gamepad.devices.length === 0) return Translation.tr("No controller connected. Plug one in or pair it; it's detected automatically.");
+                            let s = Translation.tr("Connected: %1").arg(Gamepad.devices.join(", "));
+                            if (Gamepad.lastPressed) s += "\n" + Translation.tr("Last press: %1").arg(Gamepad.lastPressed);
+                            return s;
+                        }
                     }
                 }
             }

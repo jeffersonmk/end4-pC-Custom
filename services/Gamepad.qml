@@ -1,0 +1,138 @@
+pragma Singleton
+pragma ComponentBehavior: Bound
+
+import qs
+import qs.modules.common
+import qs.modules.common.functions
+import QtQuick
+import Quickshell
+import Quickshell.Io
+
+/**
+ * Gamepad shortcut: pressing a chosen controller button runs a shell action
+ * (by default it toggles the widget overlay, the same as Super + G).
+ *
+ * A small Python helper (scripts/gamepad/gamepad_listener.py) watches every
+ * connected controller with evdev, read-only and without grabbing it, so games
+ * still get all buttons. It's only started when the feature is enabled.
+ *
+ * Config: Config.options.gamepad.{enable, button, action}
+ */
+Singleton {
+    id: root
+
+    readonly property bool enabled: Config.ready && (Config.options.gamepad?.enable ?? false)
+    readonly property string button: Config.options.gamepad?.button || "BTN_MODE"
+    readonly property string action: Config.options.gamepad?.action || "overlayOpen"
+
+    property var devices: []          // names of the connected controllers
+    property string error: ""         // "", "no_evdev", "no_permission", "crashed"
+    property bool learning: false      // waiting for a button press to pick it
+    property string lastPressed: ""   // last time the button fired (for the settings page)
+
+    readonly property string scriptPath: FileUtils.trimFileProtocol(`${Directories.scriptPath}/gamepad/gamepad_listener.py`)
+
+    // Friendly names for the usual buttons (evdev names → what's printed on the pad)
+    readonly property var buttonNames: ({
+        "BTN_MODE": Translation.tr("Home / Guide (Xbox, PS, Nintendo logo)"),
+        "BTN_SOUTH": Translation.tr("A / Cross (bottom)"),
+        "BTN_EAST": Translation.tr("B / Circle (right)"),
+        "BTN_NORTH": Translation.tr("Y / Triangle (top)"),
+        "BTN_WEST": Translation.tr("X / Square (left)"),
+        "BTN_START": Translation.tr("Start / Menu / Options"),
+        "BTN_SELECT": Translation.tr("Select / View / Share"),
+        "BTN_TL": Translation.tr("Left bumper (LB / L1)"),
+        "BTN_TR": Translation.tr("Right bumper (RB / R1)"),
+        "BTN_TL2": Translation.tr("Left trigger (LT / L2)"),
+        "BTN_TR2": Translation.tr("Right trigger (RT / R2)"),
+        "BTN_THUMBL": Translation.tr("Left stick click (L3)"),
+        "BTN_THUMBR": Translation.tr("Right stick click (R3)"),
+    })
+    function buttonLabel(name) {
+        return root.buttonNames[name] ?? name;
+    }
+
+    function load() {
+        // dummy to force init
+    }
+
+    function trigger() {
+        root.lastPressed = Qt.formatDateTime(new Date(), Config.options.time.format + ":ss");
+        GlobalStates.toggleState(root.action);
+    }
+
+    function startLearning() {
+        root.learning = true;
+        learnProc.running = true;
+    }
+    function cancelLearning() {
+        root.learning = false;
+        learnProc.running = false;
+    }
+
+    function handleLine(line, learn) {
+        let msg;
+        try {
+            msg = JSON.parse(line);
+        } catch (e) {
+            return;
+        }
+        switch (msg.event) {
+        case "devices":
+            root.devices = msg.devices ?? [];
+            root.error = "";
+            break;
+        case "error":
+            root.error = msg.error ?? "crashed";
+            break;
+        case "press":
+            if (!learn) root.trigger();
+            break;
+        case "learned":
+            if (learn) {
+                Config.options.gamepad.button = msg.button;
+                root.learning = false;
+            }
+            break;
+        }
+    }
+
+    // Main listener: runs only while enabled (and not while learning a new button)
+    Process {
+        id: listenProc
+        running: root.enabled && !root.learning
+        command: ["python3", root.scriptPath, "listen", root.button]
+        stdout: SplitParser {
+            onRead: line => root.handleLine(line, false)
+        }
+        onRunningChanged: if (!running && !root.enabled) root.devices = []
+        onExited: (code, status) => {
+            // Restart after an unexpected exit (e.g. Python error), with a small delay
+            if (root.enabled && !root.learning && code !== 0) {
+                root.error = "crashed";
+                restartTimer.restart();
+            }
+        }
+    }
+    Timer {
+        id: restartTimer
+        interval: 5000
+        onTriggered: if (root.enabled && !root.learning) listenProc.running = true
+    }
+
+    // "Press a button" picker
+    Process {
+        id: learnProc
+        command: ["python3", root.scriptPath, "learn"]
+        stdout: SplitParser {
+            onRead: line => root.handleLine(line, true)
+        }
+        onExited: root.learning = false
+    }
+    Timer {
+        // Give up the picker after 15 s without a press
+        running: root.learning
+        interval: 15000
+        onTriggered: root.cancelLearning()
+    }
+}
