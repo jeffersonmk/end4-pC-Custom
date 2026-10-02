@@ -70,13 +70,14 @@ Scope {
                     binds: category.binds.filter(bind => CheatsheetData.matches(bind, category.name, q)),
                 })).filter(category => category.binds.length > 0);
             }
-            readonly property int columnCount: Math.max(1, Math.min(4, Math.floor((width - 40) / 340)))
+            readonly property int columnCount: Math.max(1, Math.min(4, Math.floor((content.width - 28) / 340)))
             readonly property var columns: CheatsheetData.distribute(filteredCategories, columnCount)
 
-            // Dim backdrop, click to close
+            // Light dim behind the window (kept under Hyprland's ignore_alpha so
+            // only the window itself gets blurred); click outside to close
             Rectangle {
                 anchors.fill: parent
-                color: ColorUtils.transparentize(Appearance.colors.colLayer0Base, 0.12)
+                color: ColorUtils.transparentize(Appearance.colors.colLayer0Base, 0.65)
                 opacity: content.opacity
                 MouseArea {
                     anchors.fill: parent
@@ -84,10 +85,32 @@ Scope {
                 }
             }
 
-            Item {
+            StyledRectangularShadow {
+                target: content
+                opacity: content.opacity
+            }
+
+            // Rounded window
+            Rectangle {
                 id: content
-                anchors.fill: parent
+                anchors.centerIn: parent
+                width: Math.min(parent.width - 120, 1560)
+                // Height follows the full (unfiltered) list so the window doesn't jump while filtering
+                property real naturalHeight: 0
+                readonly property real wantedHeight: 16 + titleBar.implicitHeight + 14 + columnsRow.implicitHeight + 14 + filterBar.implicitHeight + 16
+                onWantedHeightChanged: if (panelWindow.query.length === 0) naturalHeight = wantedHeight
+                height: Math.min(parent.height - 100, Math.max(naturalHeight, 360))
+                radius: Appearance.rounding.windowRounding
+                color: Appearance.colors.colLayer0
+                border.width: 1
+                border.color: Appearance.colors.colLayer0Border
+                clip: true
                 focus: true
+
+                // Swallow clicks inside the window so they don't close it
+                MouseArea {
+                    anchors.fill: parent
+                }
                 opacity: 0
                 scale: 0.97
                 Component.onCompleted: {
@@ -141,8 +164,8 @@ Scope {
                     anchors {
                         top: parent.top
                         right: parent.right
-                        topMargin: 20
-                        rightMargin: 20
+                        topMargin: 16
+                        rightMargin: 16
                     }
                     implicitWidth: 40
                     implicitHeight: 40
