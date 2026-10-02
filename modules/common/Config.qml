@@ -599,6 +599,12 @@ Singleton {
                     property int key: 12
                     property int comment: 12
                 }
+                // "AI usage" tab: each provider is opt-in, because it reads the local
+                // app login (Claude Code / Codex) and queries the provider's servers
+                property JsonObject aiUsage: JsonObject {
+                    property bool claude: false
+                    property bool chatgpt: false
+                }
             }
 
             property JsonObject conflictKiller: JsonObject {

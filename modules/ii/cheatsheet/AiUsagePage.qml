@@ -16,6 +16,8 @@ import Quickshell.Io
  * (Claude Code / Codex) and prints the same JSON shape:
  *   { ok, provider, plan, limitReached, limits: [{key, title, subtitle, percent, resetsAt}],
  *     extra: {kind, enabled, unlimited, balance, spent, limit, currency}, breakdown: [{name, percent}] }
+ * Each provider is opt-in (Config.options.cheatsheet.aiUsage.<id>): a disabled provider
+ * never runs its script, so nothing is read or sent until the user turns it on.
  * Refreshes every `interval` ms while the tab is visible.
  */
 Item {
@@ -47,6 +49,15 @@ Item {
             "relogHint": Translation.tr("Sign in again in Codex (`codex login`), then refresh."),
         },
     ]
+
+    function isEnabled(id) {
+        return Config.options.cheatsheet.aiUsage[id] === true;
+    }
+    function setEnabled(id, value) {
+        Config.options.cheatsheet.aiUsage[id] = value;
+    }
+    readonly property var enabledProviders: providers.filter(p => isEnabled(p.id))
+    readonly property var disabledProviders: providers.filter(p => !isEnabled(p.id))
 
     function refresh() {
         for (let i = 0; i < providerRepeater.count; i++) providerRepeater.itemAt(i)?.refresh();
@@ -103,12 +114,93 @@ Item {
         width: parent.width
         spacing: 10
 
+        // Explanation shown while at least one provider is off
+        Rectangle {
+            Layout.fillWidth: true
+            visible: root.disabledProviders.length > 0
+            implicitHeight: optInColumn.implicitHeight + 28
+            radius: Appearance.rounding.large
+            color: Appearance.colors.colLayer1
+
+            ColumnLayout {
+                id: optInColumn
+                anchors {
+                    fill: parent
+                    margins: 14
+                }
+                spacing: 12
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    MaterialSymbol {
+                        Layout.alignment: Qt.AlignTop
+                        text: "privacy_tip"
+                        iconSize: 22
+                        color: Appearance.colors.colPrimary
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        text: root.enabledProviders.length === 0
+                            ? Translation.tr("Shows how much of your Claude and ChatGPT plan limits you've used. Each one is off until you turn it on: it reads the login of the app already on this PC (Claude Code / Codex) and asks only that provider's servers for your usage. The login is never shown, sent elsewhere or renewed.")
+                            : Translation.tr("Also available. Turning it on reads that app's login on this PC and asks only its provider for your usage.")
+                        color: Appearance.colors.colOnLayer1
+                        font.pixelSize: Appearance.font.pixelSize.small
+                    }
+                }
+
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Repeater {
+                        model: root.disabledProviders
+                        delegate: RippleButton {
+                            id: enableButton
+                            required property var modelData
+                            implicitHeight: 40
+                            implicitWidth: enableRow.implicitWidth + 28
+                            buttonRadius: Appearance.rounding.full
+                            colBackground: Appearance.colors.colSecondaryContainer
+                            colBackgroundHover: Appearance.colors.colSecondaryContainerHover
+                            onClicked: root.setEnabled(enableButton.modelData.id, true)
+                            contentItem: Item {
+                                Row {
+                                    id: enableRow
+                                    anchors.centerIn: parent
+                                    spacing: 8
+                                    CustomIcon {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 18
+                                        height: 18
+                                        source: enableButton.modelData.icon
+                                        colorize: true
+                                        color: Appearance.colors.colOnSecondaryContainer
+                                    }
+                                    StyledText {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: Translation.tr("Show %1 usage").arg(enableButton.modelData.name)
+                                        color: Appearance.colors.colOnSecondaryContainer
+                                        font.pixelSize: Appearance.font.pixelSize.small
+                                    }
+                                }
+                            }
+                            StyledToolTip {
+                                text: Translation.tr("Reads the %1 login on this PC. You can turn it off in Settings › Interface › Cheat sheet").arg(enableButton.modelData.app)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
+            visible: root.enabledProviders.length > 0
             Repeater {
                 id: providerRepeater
-                model: root.providers
+                model: root.enabledProviders
                 delegate: ProviderColumn {
                     required property var modelData
                     Layout.fillWidth: true
@@ -122,10 +214,11 @@ Item {
         // Footer
         RowLayout {
             Layout.fillWidth: true
+            visible: root.enabledProviders.length > 0
             spacing: 8
             StyledText {
                 Layout.fillWidth: true
-                text: Translation.tr("Data from the local Claude Code and Codex logins · refreshes every minute")
+                text: Translation.tr("Data from the local %1 login · refreshes every minute · turn off in Settings › Interface › Cheat sheet").arg(root.enabledProviders.map(p => p.app).join(" / "))
                 color: Appearance.colors.colSubtext
                 font.pixelSize: Appearance.font.pixelSize.smaller
             }

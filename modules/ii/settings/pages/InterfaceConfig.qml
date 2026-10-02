@@ -615,6 +615,31 @@ ContentPage {
             }
 
             ContentSubsection {
+                title: Translation.tr("AI usage tab")
+                tooltip: Translation.tr("Plan limits shown in the AI usage tab of the cheat sheet (Super + /).\nEach one reads the login of the app on this PC and asks the provider's servers for your usage.\nNothing is sent anywhere else, and the login is never changed or renewed.")
+                GroupedList {
+                    ConfigSwitch {
+                        buttonIcon: "token"
+                        text: Translation.tr("Claude usage (reads the Claude Code login)")
+                        checked: Config.options.cheatsheet.aiUsage.claude
+                        onCheckedChanged: { Config.options.cheatsheet.aiUsage.claude = checked }
+                        StyledToolTip {
+                            text: Translation.tr("Reads ~/.claude/.credentials.json and queries api.anthropic.com")
+                        }
+                    }
+                    ConfigSwitch {
+                        buttonIcon: "token"
+                        text: Translation.tr("ChatGPT usage (reads the Codex login)")
+                        checked: Config.options.cheatsheet.aiUsage.chatgpt
+                        onCheckedChanged: { Config.options.cheatsheet.aiUsage.chatgpt = checked }
+                        StyledToolTip {
+                            text: Translation.tr("Reads ~/.codex/auth.json and queries chatgpt.com")
+                        }
+                    }
+                }
+            }
+
+            ContentSubsection {
                 title: Translation.tr("Super key symbol")
                 tooltip: Translation.tr("Shown in place of Super in the keybind cheat sheet (Super + /).\nYou can also edit cheatsheet.superKey in the config file")
                 GroupedList {
