@@ -4,6 +4,7 @@ import Quickshell
 import qs.modules.common
 import qs.modules.ii.background
 import qs.modules.ii.bar
+import qs.modules.ii.cheatsheet
 import qs.modules.ii.dock
 import qs.modules.ii.equalizer
 import qs.modules.ii.lock
@@ -30,6 +31,7 @@ import qs.modules.ii.frame
 Scope {
     PanelLoader { extraCondition: !Config.options.bar.vertical; component: Bar {} }
     PanelLoader { component: Background {} }
+    PanelLoader { component: Cheatsheet {} }
     PanelLoader { extraCondition: Config.options.dock.enable; component: Dock {} }
     PanelLoader { component: EqualizerPopup {} }
     PanelLoader { component: Lock {} }
