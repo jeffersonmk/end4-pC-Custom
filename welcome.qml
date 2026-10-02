@@ -392,7 +392,7 @@ ApplicationWindow {
                             title: "AI"
 
                             ConfigSelectionArray {
-                                currentValue: Config.options.policies.ai
+                                currentValue: Config.options.policies.ai === 0 ? 0 : 2
                                 onSelected: newValue => {
                                     Config.options.policies.ai = newValue;
                                 }
@@ -401,11 +401,6 @@ ApplicationWindow {
                                         displayName: Translation.tr("No"),
                                         icon: "close",
                                         value: 0
-                                    },
-                                    {
-                                        displayName: Translation.tr("Yes"),
-                                        icon: "check",
-                                        value: 1
                                     },
                                     {
                                         displayName: Translation.tr("Local only"),

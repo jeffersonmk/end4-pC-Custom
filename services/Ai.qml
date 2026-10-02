@@ -10,21 +10,17 @@ import QtQuick
 import qs.services.ai
 
 /**
- * Basic service to handle LLM chats. Supports Google's and OpenAI's API formats.
- * Supports Gemini and OpenAI models.
- * Limitations:
- * - For now functions only work with Gemini API format
+ * Basic service to handle LLM chats with LOCAL models only
+ * (Ollama, vLLM, or extra models in config.ai.extraModels whose endpoint is local).
+ * Online / API-key models were removed in this fork.
  */
 Singleton {
     id: root
 
     property Component aiMessageComponent: AiMessageData {}
     property Component aiModelComponent: AiModel {}
-    property Component geminiApiStrategy: GeminiApiStrategy {}
     property Component openaiApiStrategy: OpenAiApiStrategy {}
-    property Component mistralApiStrategy: MistralApiStrategy {}
     readonly property string interfaceRole: "interface"
-    readonly property string apiKeyEnvVarName: "API_KEY"
 
     signal responseFinished()
 
@@ -40,14 +36,9 @@ Singleton {
     // property var messages: []
     property var messageIDs: []
     property var messageByID: ({})
-    readonly property var apiKeys: KeyringStorage.keyringData?.apiKeys ?? {}
-    readonly property var apiKeysLoaded: KeyringStorage.loaded
-    readonly property bool currentModelHasApiKey: {
-        const model = models[currentModelId];
-        if (!model || !model.requires_key) return true;
-        if (!apiKeysLoaded) return false;
-        const key = apiKeys[model.key_id];
-        return (key?.length > 0);
+    // Only endpoints on this machine are accepted
+    function isLocalEndpoint(endpoint) {
+        return /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0)(:\d+)?(\/|$)/i.test(endpoint ?? "");
     }
     property var postResponseHook
     property real temperature: Persistent.states?.ai?.temperature ?? 0.5
@@ -78,58 +69,10 @@ Singleton {
         "{DE}": `${SystemInfo.desktopEnvironment} (${SystemInfo.windowingSystem})` 
     }
 
-    // Gemini: https://ai.google.dev/gemini-api/docs/function-calling
-    // OpenAI: https://platform.openai.com/docs/guides/function-calling
-    property string currentTool: Config?.options.ai.tool ?? "search"
+    // OpenAI-compatible function calling (Ollama / vLLM support it)
+    // https://platform.openai.com/docs/guides/function-calling
+    property string currentTool: Config?.options.ai.tool ?? "functions"
     property var tools: {
-        "gemini": {
-            "functions": [{"functionDeclarations": [
-                {
-                    "name": "switch_to_search_mode",
-                    "description": "Search the web",
-                },
-                {
-                    "name": "get_shell_config",
-                    "description": "Get the desktop shell config file contents",
-                },
-                {
-                    "name": "set_shell_config",
-                    "description": "Set a field in the desktop graphical shell config file. Must only be used after `get_shell_config`.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "key": {
-                                "type": "string",
-                                "description": "The key to set, e.g. `bar.borderless`. MUST NOT BE GUESSED, use `get_shell_config` to see what keys are available before setting.",
-                            },
-                            "value": {
-                                "type": "string",
-                                "description": "The value to set, e.g. `true`"
-                            }
-                        },
-                        "required": ["key", "value"]
-                    }
-                },
-                {
-                    "name": "run_shell_command",
-                    "description": "Run a shell command in bash and get its output. Use this only for quick commands that don't require user interaction. For commands that require interaction, ask the user to run manually instead.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "command": {
-                                "type": "string",
-                                "description": "The bash command to run",
-                            },
-                        },
-                        "required": ["command"]
-                    }
-                },
-            ]}],
-            "search": [{
-                "google_search": {}
-            }],
-            "none": []
-        },
         "openai": {
             "functions": [
                 {
@@ -181,64 +124,12 @@ Singleton {
             ],
             "search": [],
             "none": [],
-        },
-        "mistral": {
-            "functions": [
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "get_shell_config",
-                        "description": "Get the desktop shell config file contents",
-                        "parameters": {}
-                    },
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "set_shell_config",
-                        "description": "Set a field in the desktop graphical shell config file. Must only be used after `get_shell_config`.",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "key": {
-                                    "type": "string",
-                                    "description": "The key to set, e.g. `bar.borderless`. MUST NOT BE GUESSED, use `get_shell_config` to see what keys are available before setting.",
-                                },
-                                "value": {
-                                    "type": "string",
-                                    "description": "The value to set, e.g. `true`"
-                                }
-                            },
-                            "required": ["key", "value"]
-                        }
-                    }
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "run_shell_command",
-                        "description": "Run a shell command in bash and get its output. Use this only for quick commands that don't require user interaction. For commands that require interaction, ask the user to run manually instead.",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "command": {
-                                    "type": "string",
-                                    "description": "The bash command to run",
-                                },
-                            },
-                            "required": ["command"]
-                        }
-                    },
-                },
-            ],
-            "search": [],
-            "none": [],
         }
     }
-    property list<var> availableTools: Object.keys(root.tools[models[currentModelId]?.api_format])
+    property list<var> availableTools: Object.keys(root.tools["openai"])
     property var toolDescriptions: {
-        "functions": Translation.tr("Commands, edit configs, search.\nTakes an extra turn to switch to search mode if that's needed"),
-        "search": Translation.tr("Gives the model search capabilities (immediately)"),
+        "functions": Translation.tr("Run commands and edit the shell config"),
+        "search": Translation.tr("No effect on local models"),
         "none": Translation.tr("Disable tools")
     }
 
@@ -248,86 +139,25 @@ Singleton {
     // - description: Description of the model
     // - endpoint: Endpoint of the model
     // - model: Model name of the model
-    // - requires_key: Whether the model requires an API key
-    // - key_id: The identifier of the API key. Use the same identifier for models that can be accessed with the same key.
-    // - key_get_link: Link to get an API key
-    // - key_get_description: Description of pricing and how to get an API key
-    // - api_format: The API format of the model. Can be "openai" or "gemini". Default is "openai".
+    // - endpoint must be local (localhost / 127.0.0.1); OpenAI-compatible format
     // - extraParams: Extra parameters to be passed to the model. This is a JSON object.
-    property var models: Config.options.policies.ai === 2 ? {} : {
-        "gemini-2.5-flash": aiModelComponent.createObject(this, {
-            "name": "Gemini 2.5 Flash",
-            "icon": "google-gemini-symbolic",
-            "description": Translation.tr("Online | Google's model\nNewer model that's slower than its predecessor but should deliver higher quality answers"),
-            "homepage": "https://aistudio.google.com",
-            "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent",
-            "model": "gemini-2.5-flash",
-            "requires_key": true,
-            "key_id": "gemini",
-            "key_get_link": "https://aistudio.google.com/app/apikey",
-            "key_get_description": Translation.tr("**Pricing**: free. Data used for training.\n\n**Instructions**: Log into Google account, allow AI Studio to create Google Cloud project or whatever it asks, go back and click Get API key"),
-            "api_format": "gemini",
-        }),
-        "gemini-3-flash": aiModelComponent.createObject(this, {
-            "name": "Gemini 3 Flash",
-            "icon": "google-gemini-symbolic",
-            "description": Translation.tr("Online | Google's model\nPro-level intelligence at the speed and pricing of Flash."),
-            "homepage": "https://aistudio.google.com",
-            "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:streamGenerateContent",
-            "model": "gemini-3-flash-preview",
-            "requires_key": true,
-            "key_id": "gemini",
-            "key_get_link": "https://aistudio.google.com/app/apikey",
-            "key_get_description": Translation.tr("**Pricing**: free. Data used for training.\n\n**Instructions**: Log into Google account, allow AI Studio to create Google Cloud project or whatever it asks, go back and click Get API key"),
-            "api_format": "gemini",
-        }),
-        "mistral-medium-latest": aiModelComponent.createObject(this, {
-            "name": "Mistral Medium Latest",
-            "icon": "mistral-symbolic",
-            "description": Translation.tr("Online | %1's model | Delivers fast, responsive and well-formatted answers. Disadvantages: not very eager to do stuff; might make up unknown function calls").arg("Mistral"),
-            "homepage": "https://mistral.ai",
-            "endpoint": "https://api.mistral.ai/v1/chat/completions",
-            "model": "mistral-medium-latest",
-            "requires_key": true,
-            "key_id": "mistral",
-            "key_get_link": "https://console.mistral.ai/api-keys",
-            "key_get_description": Translation.tr("**Instructions**: Log into Mistral account, go to Keys on the sidebar, click Create new key"),
-            "api_format": "mistral",
-        }),
-        "mistral-small-2603": aiModelComponent.createObject(this, {
-            "name": "Mistral Small 4",
-            "icon": "mistral-symbolic",
-            "description": Translation.tr("Online | %1's model | Delivers fast, responsive and well-formatted answers. Disadvantages: not very eager to do stuff; might make up unknown function calls").arg("Mistral"),
-            "homepage": "https://mistral.ai",
-            "endpoint": "https://api.mistral.ai/v1/chat/completions",
-            "model": "mistral-small-2603",
-            "requires_key": true,
-            "key_id": "mistral",
-            "key_get_link": "https://console.mistral.ai/api-keys",
-            "key_get_description": Translation.tr("**Instructions**: Log into Mistral account, go to Keys on the sidebar, click Create new key"),
-            "api_format": "mistral",
-        }),
-    }
+    // Filled at runtime with local models (Ollama, vLLM, local extraModels)
+    property var models: ({})
     property var modelList: Object.keys(root.models)
     property var currentModelId: {
         const saved = Persistent.states?.ai?.model;
-        if (saved === "mistral-medium-3") return "mistral-medium-latest";
-        if (saved === "mistral-small") return "mistral-small-2603";
         return (saved && models[saved]) ? saved : modelList[0];
     }
 
-    property var apiStrategies: {
-        "openai": openaiApiStrategy.createObject(this),
-        "gemini": geminiApiStrategy.createObject(this),
-        "mistral": mistralApiStrategy.createObject(this),
-    }
-    property ApiStrategy currentApiStrategy: apiStrategies[models[currentModelId]?.api_format || "openai"]
+    property ApiStrategy currentApiStrategy: openaiApiStrategy.createObject(this)
 
     function addUserModels() {
         (Config?.options.ai?.extraModels ?? []).forEach(model => {
+            if (!root.isLocalEndpoint(model["endpoint"])) return; // online models are not supported
             const safeModelName = root.safeModelName(model["model"]);
-            root.addModel(safeModelName, model)
+            root.addModel(safeModelName, Object.assign({}, model, { "api_format": "openai", "requires_key": false }))
         });
+        root.modelList = Object.keys(root.models);
     }
 
     Connections {
@@ -342,9 +172,6 @@ Singleton {
     property string pendingFilePath: ""
 
     Component.onCompleted: {
-        if (Persistent.states?.ai?.model === "mistral-medium-3") {
-            Persistent.states.ai.model = "mistral-medium-latest";
-        }
         setModel(currentModelId, false, false); // Do necessary setup for model
         root.addUserModels() // Config onReadyChanged above might not fire if config is loaded before this service
     }
@@ -542,16 +369,17 @@ Singleton {
         delete root.messageByID[id];
     }
 
-    function addApiKeyAdvice(model) {
-        root.addMessage(
-            Translation.tr('To set an API key, pass it with the %4 command\n\nTo view the key, pass "get" with the command<br/>\n\n### For %1:\n\n**Link**: %2\n\n%3')
-                .arg(model.name).arg(model.key_get_link).arg(model.key_get_description ?? Translation.tr("<i>No further instruction provided</i>")).arg("/key"), 
-            Ai.interfaceRole
-        );
-    }
+    // Shown when no local model is available yet
+    readonly property var noModelPlaceholder: ({
+        name: Translation.tr("No local model"),
+        icon: "spark-symbolic",
+        description: Translation.tr("Install Ollama and pull a model, then run /refresh"),
+        endpoint: "",
+        model: "",
+    })
 
     function getModel() {
-        return models[currentModelId] ?? models[modelList[0]];
+        return models[currentModelId] ?? models[modelList[0]] ?? root.noModelPlaceholder;
     }
 
     function setModel(modelId, feedback = true, setPersistentState = true) {
@@ -559,29 +387,15 @@ Singleton {
         modelId = modelId.toLowerCase()
         if (modelList.indexOf(modelId) !== -1) {
             const model = models[modelId]
-            // See if policy prevents online models
-            if (Config.options.policies.ai === 2 && !model.endpoint.includes("localhost")) {
-                root.addMessage(
-                    Translation.tr("Online models disallowed\n\nControlled by `policies.ai` config option"),
-                    root.interfaceRole
-                );
-                return;
-            }
             if (setPersistentState) Persistent.states.ai.model = modelId;
             if (feedback) root.addMessage(Translation.tr("Model set to %1").arg(model.name), root.interfaceRole);
-            if (model.requires_key) {
-                // If key not there show advice
-                if (root.apiKeysLoaded && (!root.apiKeys[model.key_id] || root.apiKeys[model.key_id].length === 0)) {
-                    root.addApiKeyAdvice(model)
-                }
-            }
         } else {
             if (feedback) root.addMessage(Translation.tr("Invalid model. Supported: \n```\n") + modelList.join("\n```\n```\n"), Ai.interfaceRole) + "\n```"
         }
     }
 
     function setTool(tool) {
-        if (!root.tools[models[currentModelId]?.api_format] || !(tool in root.tools[models[currentModelId]?.api_format])) {
+        if (!(tool in root.tools["openai"])) {
             root.addMessage(Translation.tr("Invalid tool. Supported tools:\n- %1").arg(root.availableTools.join("\n- ")), root.interfaceRole);
             return false;
         }
@@ -601,35 +415,6 @@ Singleton {
         Persistent.states.ai.temperature = value;
         root.temperature = value;
         root.addMessage(Translation.tr("Temperature set to %1").arg(value), Ai.interfaceRole);
-    }
-
-    function setApiKey(key) {
-        const model = models[currentModelId];
-        if (!model.requires_key) {
-            root.addMessage(Translation.tr("%1 does not require an API key").arg(model.name), Ai.interfaceRole);
-            return;
-        }
-        if (!key || key.length === 0) {
-            const model = models[currentModelId];
-            root.addApiKeyAdvice(model)
-            return;
-        }
-        KeyringStorage.setNestedField(["apiKeys", model.key_id], key.trim());
-        root.addMessage(Translation.tr("API key set for %1").arg(model.name), Ai.interfaceRole);
-    }
-
-    function printApiKey() {
-        const model = models[currentModelId];
-        if (model.requires_key) {
-            const key = root.apiKeys[model.key_id];
-            if (key) {
-                root.addMessage(Translation.tr("API key:\n\n```txt\n%1\n```").arg(key), Ai.interfaceRole);
-            } else {
-                root.addMessage(Translation.tr("No API key set for %1").arg(model.name), Ai.interfaceRole);
-            }
-        } else {
-            root.addMessage(Translation.tr("%1 does not require an API key").arg(model.name), Ai.interfaceRole);
-        }
     }
 
     function printTemperature() {
@@ -667,20 +452,23 @@ Singleton {
         function makeRequest() {
             const model = models[currentModelId];
 
-            // Fetch API keys if needed
-            if (model?.requires_key && !KeyringStorage.loaded) KeyringStorage.fetchKeyringData();
-            
+            if (!model || !model.endpoint) {
+                root.addMessage(Translation.tr("No local model available.\n\nInstall [Ollama](https://ollama.com), pull a model (e.g. `ollama pull llama3.2`) and run `/refresh`."), root.interfaceRole);
+                return;
+            }
+            if (!root.isLocalEndpoint(model.endpoint)) {
+                root.addMessage(Translation.tr("Only local models are supported"), root.interfaceRole);
+                return;
+            }
+
             requester.currentStrategy = root.currentApiStrategy;
             requester.currentStrategy.reset(); // Reset strategy state
-
-            /* Put API key in environment variable */
-            if (model.requires_key) requester.environment[`${root.apiKeyEnvVarName}`] = root.apiKeys ? (root.apiKeys[model.key_id] ?? "") : ""
 
             /* Build endpoint, request data */
             const endpoint = root.currentApiStrategy.buildEndpoint(model);
             const messageArray = root.messageIDs.map(id => root.messageByID[id]);
             const filteredMessageArray = messageArray.filter(message => message.role !== Ai.interfaceRole);
-            const data = root.currentApiStrategy.buildRequestData(model, filteredMessageArray, root.systemPrompt, root.temperature, root.tools[model.api_format][root.currentTool], root.pendingFilePath);
+            const data = root.currentApiStrategy.buildRequestData(model, filteredMessageArray, root.systemPrompt, root.temperature, root.tools["openai"][root.currentTool] ?? [], root.pendingFilePath);
             // console.log("[Ai] Request data: ", JSON.stringify(data, null, 2));
 
             let requestHeaders = {
@@ -709,9 +497,7 @@ Singleton {
             // console.log("Request headers: ", JSON.stringify(requestHeaders));
             // console.log("Header string: ", headerString);
 
-            /* Get authorization header from strategy */
-            const authHeader = requester.currentStrategy.buildAuthorizationHeader(root.apiKeyEnvVarName);
-            
+
             /* Script shebang */
             const scriptShebang = "#!/usr/bin/env bash\n";
 
@@ -727,7 +513,6 @@ Singleton {
             let scriptRequestContent = ""
             scriptRequestContent += `curl --no-buffer "${endpoint}"`
                 + ` ${headerString}`
-                + (authHeader ? ` ${authHeader}` : "")
                 + ` --data '${CF.StringUtils.shellSingleQuoteEscape(JSON.stringify(data))}'`
                 + "\n"
             
@@ -779,11 +564,6 @@ Singleton {
                 requester.markDone();
             } else if (!requester.message.done) {
                 requester.markDone();
-            }
-
-            // Handle error responses
-            if (requester.message.content.includes("API key not valid")) {
-                root.addApiKeyAdvice(models[requester.message.model]);
             }
         }
     }

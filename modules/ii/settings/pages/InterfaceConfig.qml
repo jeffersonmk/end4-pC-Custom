@@ -181,11 +181,11 @@ ContentPage {
                             ConfigSelectionArray {
                                 Layout.fillWidth: false
                                 Layout.alignment: Qt.AlignRight
-                                currentValue: Config.options.policies.ai
+                                // Online AI was removed: any non-zero value means "local only"
+                                currentValue: Config.options.policies.ai === 0 ? 0 : 2
                                 onSelected: newValue => { Config.options.policies.ai = newValue }
                                 options: [
                                     { displayName: Translation.tr("No"), icon: "close", value: 0 },
-                                    { displayName: Translation.tr("Yes"), icon: "check", value: 1 },
                                     { displayName: Translation.tr("Local"), icon: "sync_saved_locally", value: 2 }
                                 ]
                             }

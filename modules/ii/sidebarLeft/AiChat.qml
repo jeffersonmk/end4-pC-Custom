@@ -89,17 +89,6 @@ Item {
             }
         },
         {
-            name: "key",
-            description: Translation.tr("Set API key"),
-            execute: args => {
-                if (args[0] == "get") {
-                    Ai.printApiKey();
-                } else {
-                    Ai.setApiKey(args[0]);
-                }
-            }
-        },
-        {
             name: "save",
             description: Translation.tr("Save chat"),
             execute: args => {
@@ -140,7 +129,7 @@ Item {
         },
         {
             name: "temp",
-            description: Translation.tr("Set temperature (randomness) of the model. Values range between 0 to 2 for Gemini, 0 to 1 for other models. Default is 0.5."),
+            description: Translation.tr("Set temperature (randomness) of the model. Values range between 0 and 2. Default is 0.5."),
             execute: args => {
                 // console.log(args)
                 if (args.length == 0 || args[0] == "get") {
@@ -336,9 +325,11 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
                     spacing: 10
 
                     StatusItem {
-                        icon: Ai.currentModelHasApiKey ? "key" : "key_off"
-                        statusText: ""
-                        description: Ai.currentModelHasApiKey ? Translation.tr("API key is set\nChange with /key YOUR_API_KEY") : Translation.tr("No API key\nSet it with /key YOUR_API_KEY")
+                        icon: Ai.modelList.length > 0 ? "computer" : "cloud_off"
+                        statusText: Translation.tr("Local")
+                        description: Ai.modelList.length > 0
+                            ? Translation.tr("Local models only (Ollama / vLLM)\nRefresh the list with /refresh")
+                            : Translation.tr("No local model found\nInstall Ollama, pull a model, then /refresh")
                     }
                     StatusSeparator {}
                     StatusItem {
@@ -410,7 +401,7 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
                 shown: Ai.messageIDs.length === 0
                 icon: "neurology"
                 title: Translation.tr("Large language models")
-                description: Translation.tr("Type /key to get started with online models\nCtrl+O to expand sidebar\nCtrl+P to pin sidebar\nCtrl+D to detach sidebar")
+                description: Translation.tr("Local models only (Ollama / vLLM)\n/model to choose · /refresh to rescan\nCtrl+O to expand sidebar\nCtrl+P to pin sidebar\nCtrl+D to detach sidebar")
                 shape: MaterialShape.Shape.PixelCircle
             }
 
