@@ -316,6 +316,16 @@ ContentPage {
                         text: Translation.tr("Watches connected game controllers (USB or Bluetooth).\nGames still receive every button as usual.")
                     }
                 }
+                ConfigSwitch {
+                    enabled: Config.options.gamepad.enable
+                    buttonIcon: "gamepad"
+                    text: Translation.tr("Navigate the widget overlay with the controller")
+                    checked: Config.options.gamepad.navigateOverlay
+                    onCheckedChanged: { Config.options.gamepad.navigateOverlay = checked }
+                    StyledToolTip {
+                        text: Translation.tr("While the overlay (Super + G) is open: d-pad / left stick to move,\nbottom button to select, right button to close, bumpers for volume.\nThe controller is reserved for the shell only while the overlay is open.")
+                    }
+                }
                 ConfigComboBox {
                     Layout.fillWidth: true
                     enabled: Config.options.gamepad.enable
@@ -386,7 +396,7 @@ ContentPage {
                             case "crashed": return Translation.tr("The controller listener stopped unexpectedly; retrying…");
                             }
                             if (Gamepad.devices.length === 0) return Translation.tr("No controller connected. Plug one in or pair it; it's detected automatically.");
-                            let s = Translation.tr("Connected: %1").arg(Gamepad.devices.join(", "));
+                            let s = Translation.tr("Connected: %1").arg(Gamepad.devices.map(d => `${d.name} (${Gamepad.brandNames[d.brand] ?? d.brand})`).join(", "));
                             if (Gamepad.lastPressed) s += "\n" + Translation.tr("Last press: %1").arg(Gamepad.lastPressed);
                             return s;
                         }

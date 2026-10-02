@@ -614,6 +614,8 @@ Singleton {
                 property string button: "BTN_MODE"
                 // Any GlobalStates.hotCornerOptions value; overlayOpen = same as Super + G
                 property string action: "overlayOpen"
+                // Move around the widget overlay (Super + G) with the d-pad / stick while it's open
+                property bool navigateOverlay: true
             }
 
             property JsonObject conflictKiller: JsonObject {

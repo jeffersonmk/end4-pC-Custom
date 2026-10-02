@@ -40,6 +40,7 @@ Item {
     }
 
     WidgetCanvas {
+        id: widgetCanvas
         anchors.fill: parent
         onClicked: GlobalStates.overlayOpen = false
 
@@ -62,5 +63,11 @@ Item {
                 
             }
         }
+    }
+
+    // Controller navigation (focus ring + hint bar); inert without a controller
+    OverlayGamepadNavigator {
+        anchors.fill: parent
+        scope: widgetCanvas
     }
 }
