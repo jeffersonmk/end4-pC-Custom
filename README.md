@@ -1,29 +1,29 @@
-
-
-
-
 <div align="center">
 
-# 💠 end4-pC
+# 💠 end4-pC-Custom
 
-**A personal fork of [illogical-impulse](https://github.com/end-4/dots-hyprland) by [@end-4](https://github.com/end-4)**  
-Customized and maintained by **pctrade**
+**A fork of [end4-pC](https://github.com/pctrade/end4-pC) by [@pctrade](https://github.com/pctrade), itself built on [illogical-impulse](https://github.com/end-4/dots-hyprland) by [@end-4](https://github.com/end-4)**
+Customized and maintained by **[@jeffersonmk](https://github.com/jeffersonmk)**
 
-[English](README.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md)
+[English](README.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) *(translations describe the upstream end4-pC)*
 
 </div>
 
 ---
 
-## 🎬 Showcase
+## ✨ What's different in this fork
 
-<p align="center">
-  <a href="https://www.youtube.com/watch?v=o0Vsh7eVchs">
-    <img src="https://img.youtube.com/vi/o0Vsh7eVchs/maxresdefault.jpg" alt="Material 3 Expressive x Linux" width="85%" style="border-radius: 12px; box-shadow: 0px 10px 30px rgba(0,0,0,0.5);"/>
-  </a>
-</p>
+| | |
+|---|---|
+| ⌨️ **Keybind cheat sheet** | `Super + /` opens a full-screen sheet with all your Hyprland keybinds grouped into cards (Shell, Window, Workspace, Apps, Media, your own custom binds…) with a live filter. The launcher no longer lists keybinds with `<`. |
+| 🎛️ **Cheat sheet styling** | *Settings › Interface › Cheat sheet*: Super key symbol (Arch, ⌘, Windows… Nerd Font glyphs), macOS-style modifier symbols, F-key and mouse symbols, split keycaps, font sizes. Same `cheatsheet.*` options as illogical-impulse. |
+| 🔍 **Search inside Settings** | A **Search** button in the Settings sidebar (or `Ctrl + F`) finds any page, section or option by keyword and jumps straight to it. |
+| 📐 **Roomier Settings panel** | Bigger, better-proportioned window; nothing is cut off at the bottom of the sidebar. |
+| 🖥️ **Local-only AI chat** | The *Intelligence* sidebar only talks to models running on your machine (Ollama, vLLM, or any OpenAI-compatible server on `localhost`). Online models, API keys and the `/key` command were removed. |
+| 🔑 **Gemini key for clock styling** | *Settings › Desktop › Cookie clock settings*: when **Auto styling with Gemini** is on, a field lets you paste, test and remove your Gemini API key (stored in the system keyring). Only a 200 px thumbnail of the wallpaper is sent. |
+| 📁 **Install-folder independent** | Lock screen (Niri) and *About › Update Dots* work whatever the folder is called, so this fork can live next to `end4-pC` and `ii`. |
 
-</div>
+Everything else (bar, widgets, wallpapers, lyrics, Hyprland settings…) comes from end4-pC and is kept in sync with it.
 
 ---
 
@@ -38,6 +38,8 @@ Customized and maintained by **pctrade**
 | ⚙️ Configurable Bar | ✨ And More |
 | ![Screenshot 3](screenshots/3.png) | ![Screenshot 4](screenshots/4.png) |
 
+<sub>Screenshots from upstream end4-pC.</sub>
+
 </div>
 
 ---
@@ -45,38 +47,30 @@ Customized and maintained by **pctrade**
 ## ⚡ Installation
 
 > [!NOTE]
-> This fork manages its own configuration folder independently — it does **not** overwrite or modify any existing setup. However, it does require [illogical-impulse](https://github.com/end-4/dots-hyprland) to be installed and running.
+> This fork lives in its own folder (`~/.config/quickshell/end4-pC-Custom`) and does **not** touch `ii` or `end4-pC`. It requires [illogical-impulse](https://github.com/end-4/dots-hyprland) to be installed, since it uses its Hyprland config, scripts and keyring entry.
 
 ```bash
 cd ~/.config/quickshell/
-git clone https://github.com/pctrade/end4-pC.git
-killall qs 2>/dev/null; qs -c end4-pC > /dev/null 2>&1 & disown
+git clone https://github.com/jeffersonmk/end4-pC-Custom.git
+killall qs 2>/dev/null; qs -c end4-pC-Custom > /dev/null 2>&1 & disown
 ```
 
-### 🔧 Set as your default shell (optional)
+### 🔧 Set as your default shell
 
-If you like it and want it to load by default instead of `ii`, edit:
+The illogical-impulse keybinds (launcher on `Super`, clipboard, emoji, etc.) talk to the shell named in `qsConfig`. If it doesn't match the running shell, they fall back to fuzzel. To use this fork for real, edit:
 
 ```bash
 ~/.config/hypr/hyprland/variables.lua
 ```
 
-And change this line:
+and set:
 
 ```lua
-hl.env("qsConfig", "ii")
-```
-
-to:
-
-```lua
-hl.env("qsConfig", "end4-pC")
+hl.env("qsConfig", "end4-pC-Custom")
 ```
 
 > [!TIP]
-> After saving, restart Hyprland or run `hyprctl reload` to apply the change.
-
----
+> After saving, restart Hyprland or run `hyprctl reload`. To go back, put the previous value (`ii` or `end4-pC`) back.
 
 ### ⚙️ Settings keybind
 
@@ -86,7 +80,15 @@ To open the settings panel, add this to your Hyprland config:
 hl.bind("SUPER + escape", hl.dsp.global("quickshell:settingsToggle"), {description = "Toggle settings"})
 ```
 
-> **Note:** Settings is an overlay panel, not a regular window — `Super + Q` won't close it. Use the same keybind to toggle it or press `Escape`.
+> **Note:** Settings is an overlay panel, not a regular window, so `Super + Q` won't close it. Use the same keybind or press `Escape`.
+
+### 🔄 Updating
+
+*Settings › About › Update Dots* re-downloads this repository into the folder the shell is running from and restarts it. Or manually:
+
+```bash
+cd ~/.config/quickshell/end4-pC-Custom && git pull
+```
 
 ---
 
@@ -94,27 +96,34 @@ hl.bind("SUPER + escape", hl.dsp.global("quickshell:settingsToggle"), {descripti
 
 ### How do I see my keybinds?
 
-Open the launcher (`SUPER`) and type `<` — it'll show you the full list of configured keybinds.
+Press `Super + /`. Type in the filter at the bottom to narrow them down (by description, category or key). `Esc` clears the filter, then closes.
 
-### Why doesn't Settings have a search bar?
+### How do I find a setting?
 
-It doesn't need one — the launcher already does that job. Open the launcher (`SUPER`) and just type what you're looking for (e.g. `wallpaper`, `bar`, `blur`); it'll match against page names and section keywords and jump you straight to the right Settings page, so there's no need for a separate search inside Settings itself.
+Open Settings and click **Search** in the sidebar (or press `Ctrl + F`), type a keyword (`blur`, `wallpaper`, `font`…) and press `Enter`. You can also type the keyword in the launcher (`Super`).
+
+### How do I use the AI chat?
+
+Install [Ollama](https://ollama.com), pull a model (e.g. `ollama pull llama3.2`), open the left sidebar and type `/refresh`. Choose a model with `/model`. Other local OpenAI-compatible servers can be added in `ai.extraModels` in `~/.config/illogical-impulse/config.json` (endpoints that aren't on `localhost` are ignored).
+
+### Where is the Gemini key stored?
+
+In the system keyring (entry `application=illogical-impulse`, field `apiKeys.gemini`), the same place illogical-impulse uses. It's never written to the config file.
 
 ---
 
 ## 🙏 Credits
 
-Huge thanks to the people who made this possible:
-
-- **[@end-4](https://github.com/end-4)** — for creating the original [dots-hyprland](https://github.com/end-4/dots-hyprland) / illogical-impulse shell. An absolute masterpiece of a dotfiles project 🫡
-- **[@gh0stzk](https://github.com/gh0stzk)** — for providing the weather API integration that made the weather widget possible 🙌
-- **[@StarS2112](https://github.com/StarS2112)** — for showcasing this fork 🙌
-- **[@simeulinuxkaliaiwr](https://github.com/simeulinuxkaliaiwr)** — for some shader transitions 🎨
+- **[@end-4](https://github.com/end-4)**: creator of [dots-hyprland](https://github.com/end-4/dots-hyprland) / illogical-impulse 🫡
+- **[@pctrade](https://github.com/pctrade)**: creator and maintainer of [end4-pC](https://github.com/pctrade/end4-pC), which this fork is based on
+- **[@gh0stzk](https://github.com/gh0stzk)**: weather API integration
+- **[@StarS2112](https://github.com/StarS2112)**: showcasing end4-pC
+- **[@simeulinuxkaliaiwr](https://github.com/simeulinuxkaliaiwr)**: shader transitions
 
 ---
 
 <div align="center">
 
-Made with ❤️ — feel free to fork and make it your own
+Licensed under the [GPL-3.0](LICENSE), like the projects it's based on.
 
 </div>

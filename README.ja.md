@@ -1,3 +1,6 @@
+> [!NOTE]
+> この文書は上流の [end4-pC](https://github.com/pctrade/end4-pC) について説明しており、**end4-pC-Custom** 向けには更新されていません。インストール方法と新機能は [English README](README.md) を参照してください。
+
 
 
 

@@ -18,7 +18,8 @@ Singleton {
 
     function lock() {
         if (WM.compositor === "niri") {
-            Quickshell.execDetached(["qs", "-c", "end4-pC", "ipc", "call", "lock", "activate"]);
+            // Target this running shell by its own path, whatever the install folder is called
+            Quickshell.execDetached(["qs", "-p", Quickshell.shellPath(""), "ipc", "call", "lock", "activate"]);
         } else {
             Quickshell.execDetached(["loginctl", "lock-session"]);
         }

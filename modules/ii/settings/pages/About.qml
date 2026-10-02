@@ -23,28 +23,34 @@ ContentPage {
         Qt.callLater(() => GlobalStates.settingsOpen = false)
     }
 
+    // Repository this fork is updated from
+    readonly property string dotsRepoUrl: "https://github.com/jeffersonmk/end4-pC-Custom.git"
+
     function runUpdateDots() {
+        // Works for any install folder name: update the folder this shell runs from
+        const shellDir = FileUtils.trimFileProtocol(Quickshell.shellPath("")).replace(/\/+$/, "");
         const updateScript = `
             set -e
-            DIR="$HOME/.config/quickshell"
+            SHELL_DIR='${StringUtils.shellSingleQuoteEscape(shellDir)}'
+            REPO='${dotsRepoUrl}'
 
             # Download to temp first
-            rm -rf "$DIR/end4-pC-tmp"
-            git clone https://github.com/pctrade/end4-pC.git "$DIR/end4-pC-tmp"
+            rm -rf "$SHELL_DIR-tmp"
+            git clone "$REPO" "$SHELL_DIR-tmp"
 
             # Apply update
-            rm -rf "$DIR/end4-pC-old"
-            [ -d "$DIR/end4-pC" ] && mv "$DIR/end4-pC" "$DIR/end4-pC-old"
-            mv "$DIR/end4-pC-tmp" "$DIR/end4-pC"
+            rm -rf "$SHELL_DIR-old"
+            [ -d "$SHELL_DIR" ] && mv "$SHELL_DIR" "$SHELL_DIR-old"
+            mv "$SHELL_DIR-tmp" "$SHELL_DIR"
 
             # Reload
             killall qs 2>/dev/null || true
             sleep 0.5
-            setsid qs -c end4-pC >/tmp/qs.log 2>&1 < /dev/null &
+            setsid qs -p "$SHELL_DIR" >/tmp/qs.log 2>&1 < /dev/null &
             disown
 
             # Cleanup
-            rm -rf "$DIR/end4-pC-old"
+            rm -rf "$SHELL_DIR-old"
         `
 
         Quickshell.execDetached(["kitty", "--hold", "bash", "-c", updateScript])
