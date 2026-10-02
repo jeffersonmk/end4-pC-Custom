@@ -83,6 +83,15 @@ hl.bind("SUPER + escape", hl.dsp.global("quickshell:settingsToggle"), {descripti
 
 > **Note:** Settings is an overlay panel, not a regular window, so `Super + Q` won't close it. Use the same keybind or press `Escape`.
 
+### 🖥️ System info keybind (optional)
+
+To open the cheat sheet straight on the **System** tab (hardware, usage, temperatures), add this to `~/.config/hypr/custom/keybinds.lua`:
+
+```lua
+hl.unbind("SUPER + SHIFT + T") -- free the old screen translator bind
+hl.bind("SUPER + SHIFT + T", hl.dsp.global("quickshell:systemInfoToggle"), {description = "Utilities: System info and temperatures"})
+```
+
 ### 🔄 Updating
 
 *Settings › About › Update Dots* re-downloads this repository into the folder the shell is running from and restarts it. Or manually:

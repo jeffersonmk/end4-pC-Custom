@@ -540,4 +540,19 @@ Scope {
         description: "Closes cheatsheet on press"
         onPressed: GlobalStates.cheatsheetOpen = false
     }
+
+    // Opens straight on the System tab (hardware, usage, temperatures).
+    // Closes it if it's already showing that tab.
+    CompositorGlobalShortcut {
+        name: "systemInfoToggle"
+        description: "Toggles the system info (hardware/temperatures) tab"
+        onPressed: {
+            if (GlobalStates.cheatsheetOpen && root.currentTab === 1) {
+                GlobalStates.cheatsheetOpen = false;
+            } else {
+                root.currentTab = 1;
+                GlobalStates.cheatsheetOpen = true;
+            }
+        }
+    }
 }
