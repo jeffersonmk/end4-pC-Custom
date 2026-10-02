@@ -214,8 +214,8 @@ Item {
 
                     RippleButton { // Keyword search
                         id: searchButton
-                        Layout.topMargin: 41
-                        Layout.bottomMargin: -31
+                        Layout.topMargin: isMinimal ? 24 : 41 // centered between "Config file" and the first tab
+                        Layout.bottomMargin: isMinimal ? -14 : -31
                         implicitHeight: 40
                         implicitWidth: navRail.expanded ? 150 : 40
                         buttonRadius: Appearance.rounding.full
