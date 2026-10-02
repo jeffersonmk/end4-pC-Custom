@@ -30,7 +30,11 @@ AbstractQuickPanel {
                 root.openBluetoothDialog();
             }
         }
-        NightLight {}
+        NightLight {
+            altAction: () => {
+                root.openNightLightDialog();
+            }
+        }
         GameMode {}
         IdleInhibitor {}
         EasyEffectsToggle {}

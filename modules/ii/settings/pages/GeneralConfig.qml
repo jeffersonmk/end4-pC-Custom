@@ -247,6 +247,64 @@ ContentPage {
         }
 
         ContentSection {
+            icon: "bedtime"
+            shape: MaterialShape.Shape.Cookie4Sided
+            title: Translation.tr("Night light")
+
+            ConfigSpinBox {
+                icon: "thermostat"
+                text: Translation.tr("Color temperature (K)")
+                value: Config.options.light.night.colorTemperature
+                from: 1200
+                to: 6500
+                stepSize: 100
+                onValueChanged: {
+                    if (value !== Config.options.light.night.colorTemperature) Config.options.light.night.colorTemperature = value;
+                }
+            }
+
+            ContentSubsection {
+                title: Translation.tr("Schedule")
+                tooltip: Translation.tr("Also available by right-clicking the night light button in the right sidebar")
+
+                ConfigSwitch {
+                    buttonIcon: "night_sight_auto"
+                    text: Translation.tr("Automatic schedule")
+                    checked: Config.options.light.night.automatic
+                    onCheckedChanged: { Config.options.light.night.automatic = checked }
+                }
+                ConfigTimeRow {
+                    enabled: Config.options.light.night.automatic
+                    icon: "bedtime"
+                    text: Translation.tr("Turn on at")
+                    value: Config.options.light.night.from
+                    onEdited: newValue => { Config.options.light.night.from = newValue }
+                }
+                ConfigTimeRow {
+                    enabled: Config.options.light.night.automatic
+                    icon: "wb_sunny"
+                    text: Translation.tr("Turn off at")
+                    value: Config.options.light.night.to
+                    onEdited: newValue => { Config.options.light.night.to = newValue }
+                }
+            }
+
+            ContentSubsection {
+                title: Translation.tr("When the PC starts")
+                ConfigSelectionArray {
+                    currentValue: Config.options.light.night.startup
+                    onSelected: newValue => { Config.options.light.night.startup = newValue }
+                    options: [
+                        { displayName: Translation.tr("Off"), icon: "light_off", value: "off" },
+                        { displayName: Translation.tr("On"), icon: "bedtime", value: "on" },
+                        { displayName: Translation.tr("Follow schedule"), icon: "night_sight_auto", value: "schedule" },
+                    ]
+                }
+            }
+
+        }
+
+        ContentSection {
             icon: "battery_android_full"
             shape: MaterialShape.Shape.SemiCircle
             title: Translation.tr("Battery")

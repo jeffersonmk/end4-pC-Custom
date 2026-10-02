@@ -36,10 +36,58 @@ Singleton {
     property int manualActiveMinute
 
     onClockMinuteChanged: reEvaluate()
-    // The night light always starts off (PC boot or shell restart), even inside the
-    // automatic schedule. Auto mode takes over again once the schedule is outside its
-    // window (so it turns on at the next start time), or as soon as you toggle it.
+    // State at PC boot / shell restart, chosen in the night light menu
+    // (Config.options.light.night.startup):
+    //  - "off" (default): starts off even inside the automatic schedule; the schedule
+    //    takes over again once it's outside its window (so it turns on at the next
+    //    start time), or as soon as you toggle it.
+    //  - "on": starts on; the schedule takes over at its next start/end time.
+    //  - "schedule": follows the automatic schedule right away.
     property bool startupOff: false
+    property bool startupPending: false
+    readonly property string startupMode: Config.options?.light?.night?.startup ?? "off"
+
+    Connections {
+        target: Config
+        function onReadyChanged() {
+            if (Config.ready && root.startupPending) startupTimer.restart();
+        }
+    }
+
+    function applyStartup() {
+        if (!root.startupPending) return;
+        root.startupPending = false;
+        root.reEvaluate();
+        if (root.startupMode === "on") {
+            root.startupOff = false;
+            root.manualActive = true;
+            root.manualActiveHour = root.clockHour;
+            root.manualActiveMinute = root.clockMinute;
+            root.enableTemperature();
+        } else if (root.startupMode === "schedule") {
+            root.startupOff = false;
+            root.manualActive = undefined;
+            root.firstEvaluation = false;
+            root.ensureState();
+        } else {
+            root.startupOff = true;
+        }
+    }
+
+    // "HH:mm" helpers for the schedule editors
+    function timeToMinutes(text) {
+        const parts = String(text).split(":");
+        const h = Number(parts[0]);
+        const m = Number(parts[1]);
+        if (isNaN(h) || isNaN(m)) return 0;
+        return Math.max(0, Math.min(23, h)) * 60 + Math.max(0, Math.min(59, m));
+    }
+    function minutesToTime(total) {
+        total = ((Math.round(total) % 1440) + 1440) % 1440;
+        const h = Math.floor(total / 60);
+        const m = total % 60;
+        return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    }
 
     onAutomaticChanged: {
         root.manualActive = undefined;
@@ -104,7 +152,17 @@ Singleton {
         }
         Quickshell.execDetached(["bash", "-c", `pidof hyprsunset || hyprsunset & disown; sleep 0.3; hyprctl hyprsunset identity`]);
         root.temperatureActive = false;
+        // Hold it off until the config is loaded, then apply the chosen startup state
         root.startupOff = true;
+        root.startupPending = true;
+        if (Config.ready) startupTimer.restart();
+    }
+
+    // Runs after load()'s delayed "hyprsunset identity", so "on" isn't undone by it
+    Timer {
+        id: startupTimer
+        interval: 800
+        onTriggered: root.applyStartup()
     }
 
     function enableTemperature() {

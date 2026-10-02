@@ -12,6 +12,7 @@ SpinBox {
     property real baseHeight: 35
     property real radius: Appearance.rounding.small
     property real innerButtonRadius: Appearance.rounding.unsharpen
+    property int padDigits: 0 // e.g. 2 shows 5 as "05" (time fields)
     editable: true
 
     opacity: root.enabled ? 1 : 0.4
@@ -28,7 +29,7 @@ SpinBox {
         StyledTextInput {
             id: labelText
             anchors.centerIn: parent
-            text: root.value // displayText would make the numbers weird like 1,000 instead of 1000
+            text: root.padDigits > 0 ? String(root.value).padStart(root.padDigits, "0") : root.value // displayText would make the numbers weird like 1,000 instead of 1000
             color: Appearance.colors.colOnLayer2
             font.family: Appearance.font.family.numbers
             font.variableAxes: Appearance.font.variableAxes.numbers

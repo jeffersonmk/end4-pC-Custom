@@ -12,15 +12,11 @@ QuickToggleButton {
         Hyprsunset.toggleTemperature()
     }
 
-    altAction: () => {
-        Config.options.light.night.automatic = !Config.options.light.night.automatic
-    }
-
     Component.onCompleted: {
         Hyprsunset.fetchState()
     }
     
     StyledToolTip {
-        text: Translation.tr("Night Light | Right-click to toggle Auto mode")
+        text: Translation.tr("Night Light | Right-click for schedule and options")
     }
 }

@@ -17,7 +17,7 @@ Singleton {
     readonly property var labelledTypes: [
         "ConfigSwitch", "ConfigSpinBox", "ConfigTextArea", "ConfigSelectionArray",
         "ConfigComboBox", "ConfigSlider", "ConfigSelectionShapeArray", "ConfigRow",
-        "ColorSelectionArray", "ContentSubsection"
+        "ColorSelectionArray", "ContentSubsection", "ConfigTimeRow"
     ]
 
     // Each entry remembers the `visible:` conditions of the blocks around it, so options

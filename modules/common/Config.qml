@@ -686,6 +686,9 @@ Singleton {
             property JsonObject light: JsonObject {
                 property JsonObject night: JsonObject {
                     property bool automatic: true
+                    // State when the PC boots / the shell restarts:
+                    // "off" = always off, "on" = always on, "schedule" = follow the automatic schedule
+                    property string startup: "off"
                     property string from: "19:00" // Format: "HH:mm", 24-hour time
                     property string to: "06:30"   // Format: "HH:mm", 24-hour time
                     property int colorTemperature: 5000
