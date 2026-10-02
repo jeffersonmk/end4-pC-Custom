@@ -12,6 +12,8 @@ import qs.modules.common.widgets
  *    (taskbar widget toggles, recorder buttons, widget title bar buttons, volume sliders…)
  *  - bottom face button (A / ✕): press the focused button
  *  - left/right on a focused slider: change its value (e.g. an app's volume)
+ *  - on a dropdown (e.g. the output/input device): left/right switches option directly;
+ *    A / ✕ opens the list, up/down picks, A / ✕ confirms, B / ○ cancels
  *  - right face button (B / ○) or Start: close the overlay
  *  - bumpers (LB/RB, L1/R1): system volume down/up
  * Also shows a hint bar with the controller brand logo and the button legend.
@@ -33,6 +35,9 @@ Item {
         // Any Qt Quick button: RippleButton, tab buttons (Output/Input, CPU/RAM/Swap…), switches
         return typeof item.click === "function" && item.checkable !== undefined && item.pressed !== undefined;
     }
+    function isComboBox(item) {
+        return typeof item.incrementCurrentIndex === "function" && item.popup !== undefined && item.count !== undefined;
+    }
     function isSlider(item) {
         return typeof item.increase === "function" && item.stepSize !== undefined && item.orientation !== undefined;
     }
@@ -53,9 +58,9 @@ Item {
     function collect(item, out) {
         if (!item || item === root) return;
         if (!item.visible) return;
-        if (isButton(item) || isSlider(item)) {
+        if (isButton(item) || isSlider(item) || isComboBox(item)) {
             if (reallyVisible(item)) out.push(item);
-            if (isSlider(item)) return; // don't descend into slider handles
+            if (isSlider(item) || isComboBox(item)) return; // don't descend into their internals
         }
         const kids = item.children;
         for (let i = 0; i < kids.length; i++) collect(kids[i], out);
@@ -75,11 +80,32 @@ Item {
         const toggled = list.find(t => t.toggled === true);
         return toggled ?? list[0] ?? null;
     }
+    // Dropdown whose list is open (navigation goes to the list instead of the screen)
+    readonly property bool comboOpen: current !== null && isComboBox(current) && (current.popup?.visible ?? false)
+
+    function comboChoose(combo, index) {
+        if (index < 0 || index >= combo.count) return;
+        // Emitting activated() runs the widget's own handler (e.g. set default sink),
+        // without breaking its currentIndex binding
+        if (index !== combo.currentIndex) combo.activated(index);
+        root.showToast(combo.textAt(index));
+    }
+
     function move(direction) {
+        if (root.comboOpen) {
+            if (direction === "down") root.current.incrementCurrentIndex();
+            else if (direction === "up") root.current.decrementCurrentIndex();
+            return;
+        }
         const list = targets();
         if (list.length === 0) { root.current = null; return; }
         if (!root.current || !list.includes(root.current)) {
             root.current = pickInitial(list);
+            return;
+        }
+        if (isComboBox(root.current) && (direction === "left" || direction === "right")) {
+            const c = root.current;
+            if (c.count > 1) root.comboChoose(c, (c.currentIndex + (direction === "right" ? 1 : -1) + c.count) % c.count);
             return;
         }
         if (isSlider(root.current) && (direction === "left" || direction === "right")) {
@@ -130,7 +156,17 @@ Item {
     }
     function activate() {
         const t = root.current;
+        if (root.comboOpen) {
+            const index = t.highlightedIndex;
+            t.popup.close();
+            root.comboChoose(t, index);
+            return;
+        }
         if (!t || !targets().includes(t)) { move("down"); return; }
+        if (isComboBox(t)) {
+            t.popup.open();
+            return;
+        }
         if (isButton(t)) {
             if (t.downAction) t.downAction();
             if (t.releaseAction) t.releaseAction();
@@ -151,7 +187,10 @@ Item {
             switch (button) {
                 case "BTN_SOUTH": root.activate(); break;
                 case "BTN_EAST":
-                case "BTN_START": GlobalStates.overlayOpen = false; break;
+                case "BTN_START":
+                    if (root.comboOpen) root.current.popup.close();
+                    else GlobalStates.overlayOpen = false;
+                    break;
                 case "BTN_TL":
                     Audio.decrementVolume();
                     root.showToast(Translation.tr("Volume %1%").arg(Math.round(Audio.value * 100)));
@@ -165,7 +204,10 @@ Item {
     }
     onActiveChanged: {
         if (active) Qt.callLater(() => root.current = root.pickInitial(root.targets()));
-        else root.current = null;
+        else {
+            if (root.comboOpen) root.current.popup.close();
+            root.current = null;
+        }
     }
     Timer {
         id: toastTimer
@@ -252,8 +294,8 @@ Item {
                 color: Appearance.colors.colOutlineVariant
             }
             Hint { glyph: "✥"; label: Translation.tr("Move") }
-            Hint { glyph: Gamepad.buttonGlyph("BTN_SOUTH"); label: Translation.tr("Select") }
-            Hint { glyph: Gamepad.buttonGlyph("BTN_EAST"); label: Translation.tr("Close") }
+            Hint { glyph: Gamepad.buttonGlyph("BTN_SOUTH"); label: root.comboOpen ? Translation.tr("Choose") : Translation.tr("Select") }
+            Hint { glyph: Gamepad.buttonGlyph("BTN_EAST"); label: root.comboOpen ? Translation.tr("Cancel") : Translation.tr("Close") }
             Hint {
                 glyph: `${Gamepad.buttonGlyph("BTN_TL")} ${Gamepad.buttonGlyph("BTN_TR")}`
                 label: root.toast.length > 0 ? root.toast : Translation.tr("Volume")
