@@ -7,7 +7,9 @@ import Quickshell.Io
 QuickToggleButton {
     id: root
     buttonIcon: "gamepad"
-    toggled: toggled
+    // Starts off; the real state is read from Hyprland right after (game mode is on
+    // only when animations are disabled)
+    toggled: false
 
     onClicked: {
         root.toggled = !root.toggled
@@ -20,9 +22,15 @@ QuickToggleButton {
     Process {
         id: fetchActiveState
         running: true
-        command: ["bash", "-c", `test "$(hyprctl getoption animations:enabled -j | jq ".int")" -ne 0`]
-        onExited: (exitCode, exitStatus) => {
-            root.toggled = exitCode !== 0 // Inverted because enabled = nonzero exit
+        // Newer Hyprland reports this option as {"bool": true} instead of {"int": 1}; the
+        // old check only read ".int", failed on null and showed game mode as ON at startup
+        command: ["bash", "-c", `hyprctl getoption animations:enabled -j | jq -r 'if has("int") then .int elif has("bool") then (if .bool then 1 else 0 end) else 1 end'`]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const value = this.text.trim();
+                // Anything unexpected counts as "animations on" = game mode off
+                root.toggled = value === "0";
+            }
         }
     }
     StyledToolTip {

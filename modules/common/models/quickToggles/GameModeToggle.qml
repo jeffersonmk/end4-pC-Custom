@@ -6,7 +6,9 @@ import qs.services
 QuickToggleModel {
     id: root
     name: Translation.tr("Game mode")
-    toggled: !confOpt.value
+    // Off until Hyprland's answer arrives (value starts undefined, and !undefined was
+    // showing game mode as ON at startup); on only when animations are really disabled
+    toggled: confOpt.value === 0 || confOpt.value === false
     icon: "gamepad"
 
     mainAction: () => {
