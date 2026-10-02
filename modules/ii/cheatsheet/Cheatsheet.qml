@@ -17,9 +17,9 @@ import "CheatsheetData.js" as CheatsheetData
  * Cheat sheet (window or full screen) with two tabs:
  *  - Keybinds: categories as cards in a masonry grid, filter field at the bottom
  *  - System: PC specs and live usage/temperatures (SystemInfoPage.qml)
- *  - Claude: Claude plan limits from the Claude Code login (ClaudeUsagePage.qml)
+ *  - AI usage: Claude and ChatGPT plan limits from the local Claude Code / Codex logins (AiUsagePage.qml)
  * Toggle with the "cheatsheetToggle" global shortcut (Super + / by default) or
- * `qs ipc call cheatsheet toggle|keybinds|system|claude`. Ctrl+Tab switches tabs.
+ * `qs ipc call cheatsheet toggle|keybinds|system|ai`. Ctrl+Tab switches tabs.
  */
 Scope {
     id: root
@@ -33,12 +33,12 @@ Scope {
     })
     readonly property bool splitButtons: Config.options.cheatsheet.splitButtons
     readonly property bool fullscreen: Config.options.cheatsheet.displayMode === "fullscreen"
-    // 0 = Keybinds, 1 = System, 2 = Claude. Kept between openings.
+    // 0 = Keybinds, 1 = System, 2 = AI usage. Kept between openings.
     property int currentTab: 0
     readonly property var tabs: [
         { "name": Translation.tr("Keybinds"), "icon": "keyboard" },
         { "name": Translation.tr("System"), "icon": "monitor_heart" },
-        { "name": "Claude", "icon": "token" }
+        { "name": Translation.tr("AI usage"), "icon": "token" }
     ]
     readonly property int keyFontSize: Config.options.cheatsheet.fontSize.key
     readonly property int commentFontSize: Config.options.cheatsheet.fontSize.comment
@@ -304,7 +304,7 @@ Scope {
                     }
                 }
 
-                // Claude plan usage
+                // Claude / ChatGPT plan usage
                 StyledFlickable {
                     id: claudeFlickable
                     visible: root.currentTab === 2
@@ -321,10 +321,10 @@ Scope {
                     clip: true
                     contentWidth: width
                     contentHeight: claudePage.implicitHeight
-                    ClaudeUsagePage {
+                    AiUsagePage {
                         id: claudePage
                         // In full screen the page would stretch too wide; keep it readable
-                        width: Math.min(claudeFlickable.width, 1100)
+                        width: Math.min(claudeFlickable.width, 1300)
                         anchors.horizontalCenter: parent.horizontalCenter
                         active: root.currentTab === 2
                     }
@@ -551,7 +551,7 @@ Scope {
             root.currentTab = 1;
             GlobalStates.cheatsheetOpen = true;
         }
-        function claude(): void {
+        function ai(): void {
             root.currentTab = 2;
             GlobalStates.cheatsheetOpen = true;
         }
