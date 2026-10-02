@@ -114,6 +114,11 @@ Scope {
         }
 
         Keys.onPressed: (event) => {
+            if (event.key === Qt.Key_F && (event.modifiers & Qt.ControlModifier)) {
+                settingsContent.openSearch();
+                event.accepted = true;
+                return;
+            }
             if (event.key === Qt.Key_Escape) {
                 panelWindow.hide();
                 event.accepted = true;
@@ -155,6 +160,7 @@ Scope {
             SettingsContent {
                 id: settingsContent
                 anchors.fill: parent
+                onSearchClosed: settingsWindow.forceActiveFocus()
             }
         }
     }
@@ -164,6 +170,10 @@ Scope {
         function toggle(): void { GlobalStates.settingsOpen = !GlobalStates.settingsOpen; }
         function open(): void   { GlobalStates.settingsOpen = true; }
         function close(): void  { GlobalStates.settingsOpen = false; }
+        function search(query: string): void {
+            GlobalStates.settingsOpen = true;
+            Qt.callLater(() => settingsContent.openSearch(query));
+        }
     }
 
     CompositorGlobalShortcut {

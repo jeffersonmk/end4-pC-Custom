@@ -49,6 +49,22 @@ Item {
         }
     }
 
+    signal searchClosed()
+
+    function openSearch(text) {
+        if (text) searchPopup.showWith(text);
+        else searchPopup.show();
+    }
+
+    readonly property bool searchOpen: searchPopup.open
+
+    Connections {
+        target: GlobalStates
+        function onSettingsOpenChanged() {
+            if (!GlobalStates.settingsOpen) searchPopup.hide();
+        }
+    }
+
     onCurrentPageChanged: {
         if (root.pages[currentPage]?.id === "about") {
             if (SystemInfo.cpu === "") SystemInfo.refresh()
@@ -196,6 +212,44 @@ Item {
                         }
                     }
 
+                    RippleButton { // Keyword search
+                        id: searchButton
+                        Layout.topMargin: isMinimal ? 30 : 30
+                        Layout.bottomMargin: -20
+                        Layout.leftMargin: isMinimal ? 0 : 0
+                        implicitHeight: 40
+                        implicitWidth: navRail.expanded ? 150 : 40
+                        buttonRadius: Appearance.rounding.full
+                        colBackground: Appearance.colors.colLayer2
+                        colBackgroundHover: Appearance.colors.colLayer2Hover
+                        onClicked: root.openSearch()
+                        contentItem: Row {
+                            anchors {
+                                verticalCenter: parent?.verticalCenter
+                                left: parent?.left
+                                leftMargin: navRail.expanded ? 12 : (40 - searchIcon.width) / 2
+                            }
+                            spacing: 8
+                            MaterialSymbol {
+                                id: searchIcon
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "search"
+                                iconSize: 20
+                                color: Appearance.colors.colOnLayer1
+                            }
+                            StyledText {
+                                anchors.verticalCenter: parent.verticalCenter
+                                visible: navRail.expanded
+                                text: Translation.tr("Search")
+                                color: Appearance.colors.colSubtext
+                                font.pixelSize: Appearance.font.pixelSize.small
+                            }
+                        }
+                        StyledToolTip {
+                            text: Translation.tr("Search settings by keyword (Ctrl+F)")
+                        }
+                    }
+
                     NavigationRailTabArray {
                         currentIndex: root.currentPage
                         expanded: navRail.expanded
@@ -302,5 +356,13 @@ Item {
                 }
             }
         }
+    }
+
+    SettingsSearchPopup {
+        id: searchPopup
+        anchors.fill: parent
+        z: 10
+        onResultChosen: target => root.goToTarget(target)
+        onOpenChanged: if (!open) root.searchClosed()
     }
 }
