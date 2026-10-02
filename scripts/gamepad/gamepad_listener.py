@@ -144,6 +144,42 @@ def scan(known):
     return found, permission_problem
 
 
+def hid_parent(path):
+    """sysfs node of the physical device an event node belongs to (a DualSense shows up
+    as several nodes: buttons, touchpad, motion sensors... all under the same parent)."""
+    try:
+        return os.path.realpath(f"/sys/class/input/{os.path.basename(path)}/device/device")
+    except OSError:
+        return None
+
+
+def open_companions(devices):
+    """Opens the other event nodes of the connected controllers (touchpad, motion
+    sensors), so they can be grabbed too: otherwise the DualSense touchpad keeps
+    moving the mouse and clicking in the app behind the overlay."""
+    # uinput devices (Steam's virtual pad, ydotool...) all share one virtual parent;
+    # never pull those in
+    parents = {hid_parent(p) for p in devices} - {None}
+    parents = {x for x in parents if "/virtual/" not in x}
+    companions = {}
+    for path in evdev.list_devices():
+        if path in devices or hid_parent(path) not in parents:
+            continue
+        try:
+            companions[path] = evdev.InputDevice(path)
+        except OSError:
+            pass
+    return companions
+
+
+def close_all(devs):
+    for dev in devs.values():
+        try:
+            dev.close()
+        except OSError:
+            pass
+
+
 def set_grab(devices, grab):
     """While navigating the shell, take the controllers for ourselves so the game
     or app behind the overlay doesn't also react to the buttons. Released when
@@ -249,6 +285,7 @@ def main():
     last_press = 0.0
     reported_permission = False
     nav_on = False
+    companions = {}
     nav = Navigator()
     stdin_open = mode == "listen" and not sys.stdin.isatty()
     stdin_buffer = b""
@@ -261,8 +298,12 @@ def main():
             previous = set(devices)
             devices, permission_problem = scan(devices)
             last_scan = now
-            if nav_on:
+            if nav_on and set(devices) != previous:
                 set_grab({p: d for p, d in devices.items() if p not in previous}, True)
+                set_grab(companions, False)
+                close_all(companions)
+                companions = open_companions(devices)
+                set_grab(companions, True)
             active = without_duplicates(devices)
             listing = sorted(({"name": d.name, "brand": brand_of(d)} for d in active.values()),
                              key=lambda d: d["name"])
@@ -306,10 +347,15 @@ def main():
                     if command == "nav on" and not nav_on:
                         nav_on = True
                         set_grab(devices, True)
+                        companions = open_companions(devices)
+                        set_grab(companions, True)
                     elif command == "nav off" and nav_on:
                         nav_on = False
                         nav.reset()
                         set_grab(devices, False)
+                        set_grab(companions, False)
+                        close_all(companions)
+                        companions = {}
                 continue
 
             path = fds[fd]
