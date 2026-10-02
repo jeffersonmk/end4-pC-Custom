@@ -658,11 +658,6 @@ Singleton {
 
             property JsonObject language: JsonObject {
                 property string ui: "auto" // UI language. "auto" for system locale, or specific language code like "zh_CN", "en_US"
-                property JsonObject translator: JsonObject {
-                    property string engine: "auto" // Run `trans -list-engines` for available engines. auto should use google
-                    property string targetLanguage: "auto" // Run `trans -list-all` for available languages
-                    property string sourceLanguage: "auto"
-                }
             }
 
             property JsonObject launcher: JsonObject {
@@ -816,10 +811,6 @@ Singleton {
                 property bool mediaPlayer: false
                 property string bannerImage: ""
                 property bool keepRightSidebarLoaded: true
-                property JsonObject translator: JsonObject {
-                    property bool enable: false
-                    property int delay: 300 // Delay before sending request. Reduces (potential) rate limits and lag.
-                }
                 property JsonObject media: JsonObject {
                     property bool enable: true
                     property bool artColors: false

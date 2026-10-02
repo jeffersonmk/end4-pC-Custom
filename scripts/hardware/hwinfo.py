@@ -92,9 +92,10 @@ def cpu_static():
         except (ValueError, KeyError):
             pass
     model = info.get("Model name")
-    threads = int(info["CPU(s)"]) if info.get("CPU(s)", "").isdigit() else os.cpu_count()
-    tpc = int(info.get("Thread(s) per core") or 1)
-    cores = threads // tpc if tpc else None
+    threads = int(info["CPU(s)"]) if (info.get("CPU(s)") or "").isdigit() else os.cpu_count()
+    tpc = info.get("Thread(s) per core")
+    # Without lscpu the core count is unknown (threads != cores with SMT)
+    cores = threads // int(tpc) if threads and tpc and str(tpc).isdigit() else None
     max_mhz = info.get("CPU max MHz")
     return {
         "model": clean(model),

@@ -136,7 +136,8 @@ Item {
                 details: {
                     const c = root.specs?.cpu;
                     if (!c) return "";
-                    const parts = [Translation.tr("%1 cores · %2 threads").arg(c.cores).arg(c.threads)];
+                    const parts = [c.cores ? Translation.tr("%1 cores · %2 threads").arg(c.cores).arg(c.threads)
+                                           : Translation.tr("%1 threads").arg(c.threads)];
                     if (c.maxGhz) parts.push(Translation.tr("up to %1 GHz").arg(c.maxGhz));
                     if (c.l3) parts.push(`L3 ${c.l3.replace(/\s*\(.*\)/, "")}`);
                     return parts.join(" · ");
