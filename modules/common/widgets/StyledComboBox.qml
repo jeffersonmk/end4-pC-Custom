@@ -11,6 +11,14 @@ ComboBox {
     id: root
 
     property string buttonIcon: ""
+    // Set while the list is driven by a controller/keyboard: the highlighted entry gets
+    // the hover look plus an outline, so you can see which one will be chosen
+    property bool showHighlight: false
+    property int navIndex: -1
+    function setNavIndex(i) {
+        root.navIndex = Math.max(0, Math.min(root.count - 1, i));
+        listView.positionViewAtIndex(root.navIndex, ListView.Contain);
+    }
     property real buttonRadius: height / 2
     property color colBackground: Appearance.colors.colSecondaryContainer
     property color colBackgroundHover: Appearance.colors.colSecondaryContainerHover
@@ -92,14 +100,16 @@ ComboBox {
 
         required property var model
         required property int index
+        readonly property bool navHighlighted: root.showHighlight && root.navIndex === itemDelegate.index
+        readonly property bool looksHovered: itemDelegate.hovered || itemDelegate.navHighlighted
         property color color: {
             if (root.currentIndex === itemDelegate.index) {
                 if (itemDelegate.down) return Appearance.colors.colSecondaryContainerActive;
-                if (itemDelegate.hovered) return Appearance.colors.colSecondaryContainerHover;
+                if (itemDelegate.looksHovered) return Appearance.colors.colSecondaryContainerHover;
                 return Appearance.colors.colSecondaryContainer;
             } else {
                 if (itemDelegate.down) return Appearance.colors.colLayer3Active;
-                if (itemDelegate.hovered) return Appearance.colors.colLayer3Hover;
+                if (itemDelegate.looksHovered) return Appearance.colors.colLayer3Hover;
                 return ColorUtils.transparentize(Appearance.colors.colLayer3);
             }
         }
@@ -109,6 +119,8 @@ ComboBox {
             anchors.fill: parent
             radius: Appearance.rounding.small
             color: itemDelegate.color
+            border.width: itemDelegate.navHighlighted ? 2 : 0
+            border.color: Appearance.colors.colPrimary
 
             Behavior on color {
                 animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)

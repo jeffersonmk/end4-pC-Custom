@@ -83,6 +83,13 @@ Item {
     // Dropdown whose list is open (navigation goes to the list instead of the screen)
     readonly property bool comboOpen: current !== null && isComboBox(current) && (current.popup?.visible ?? false)
 
+    Connections {
+        target: (root.current !== null && root.isComboBox(root.current)) ? root.current.popup : null
+        function onVisibleChanged() {
+            if (root.current && !root.current.popup.visible && "showHighlight" in root.current) root.current.showHighlight = false;
+        }
+    }
+
     function comboChoose(combo, index) {
         if (index < 0 || index >= combo.count) return;
         // Emitting activated() runs the widget's own handler (e.g. set default sink),
@@ -93,8 +100,14 @@ Item {
 
     function move(direction) {
         if (root.comboOpen) {
-            if (direction === "down") root.current.incrementCurrentIndex();
-            else if (direction === "up") root.current.decrementCurrentIndex();
+            const c = root.current;
+            if ("setNavIndex" in c) {
+                if (direction === "down") c.setNavIndex(c.navIndex + 1);
+                else if (direction === "up") c.setNavIndex(c.navIndex - 1);
+            } else {
+                if (direction === "down") c.incrementCurrentIndex();
+                else if (direction === "up") c.decrementCurrentIndex();
+            }
             return;
         }
         const list = targets();
@@ -157,7 +170,7 @@ Item {
     function activate() {
         const t = root.current;
         if (root.comboOpen) {
-            const index = t.highlightedIndex;
+            const index = ("navIndex" in t && t.navIndex >= 0) ? t.navIndex : t.highlightedIndex;
             t.popup.close();
             root.comboChoose(t, index);
             return;
@@ -165,6 +178,10 @@ Item {
         if (!t || !targets().includes(t)) { move("down"); return; }
         if (isComboBox(t)) {
             t.popup.open();
+            if ("showHighlight" in t) {
+                t.showHighlight = true;
+                t.setNavIndex(t.currentIndex);
+            }
             return;
         }
         if (isButton(t)) {
