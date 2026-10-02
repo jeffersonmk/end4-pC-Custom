@@ -29,7 +29,6 @@ Singleton {
     property bool screenLocked: false
     property bool screenLockContainsCharacters: false
     property bool screenUnlockFailed: false
-    property bool screenTranslatorOpen: false
     property bool sessionOpen: false
     property bool superDown: false
     property bool superReleaseMightTrigger: true
@@ -94,7 +93,6 @@ Singleton {
         { displayName: Translation.tr("Media Controls"),         value: "mediaControlsOpen" },
         { displayName: Translation.tr("Overlay"),                value: "overlayOpen" },
         { displayName: Translation.tr("ScreenShot Region"),        value: "regionSelectorOpen" },
-        { displayName: Translation.tr("Screen Translator"),      value: "screenTranslatorOpen" },
         { displayName: Translation.tr("On-screen Keyboard"),     value: "oskOpen" },
         { displayName: Translation.tr("Session Menu"),           value: "sessionOpen" },
         { displayName: Translation.tr("Equalizer"),           value: "equalizerOpen" }
