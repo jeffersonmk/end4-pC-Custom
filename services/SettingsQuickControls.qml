@@ -183,7 +183,6 @@ Singleton {
         "interface:Border width": root.optionSpin("settings.borderSize", 0, 10, 1),
         "interface:Left Sidebar/Enable": root.optionSwitch("sidebar.media.enable"),
         "interface:Follow Album Colors": root.optionSwitch("sidebar.media.artColors"),
-        "interface:Enable Translator": root.optionSwitch("sidebar.translator.enable"),
         "interface:Banner": root.optionSwitch("sidebar.banner"),
         "interface:Bottom Group": root.optionSwitch("sidebar.bottomGroup"),
         "interface:Right Sidebar/Media Player": root.optionSwitch("sidebar.mediaPlayer"),

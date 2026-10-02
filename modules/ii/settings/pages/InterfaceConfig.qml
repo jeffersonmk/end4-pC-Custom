@@ -231,32 +231,6 @@ ContentPage {
                     }
                 }
             }
-
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.topMargin: 4
-                implicitHeight: translatorCol.implicitHeight + 24
-                radius: Appearance.rounding.normal
-                color: Appearance.colors.colLayer1
-                border.width: 1
-                border.color: "transparent"
-
-                ColumnLayout {
-                    id: translatorCol
-                    anchors { fill: parent; margins: 12 }
-                    spacing: 8
-
-                    RowLayout {
-                        spacing: 8
-                        ConfigSwitch {
-                            buttonIcon: "translate"
-                            text: Translation.tr("Enable Translator")
-                            checked: Config.options.sidebar.translator.enable
-                            onCheckedChanged: { Config.options.sidebar.translator.enable = checked }
-                        }
-                    }
-                }
-            }
         }
 
         ContentSection {
