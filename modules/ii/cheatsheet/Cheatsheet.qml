@@ -17,8 +17,9 @@ import "CheatsheetData.js" as CheatsheetData
  * Cheat sheet (window or full screen) with two tabs:
  *  - Keybinds: categories as cards in a masonry grid, filter field at the bottom
  *  - System: PC specs and live usage/temperatures (SystemInfoPage.qml)
+ *  - Claude: Claude plan limits from the Claude Code login (ClaudeUsagePage.qml)
  * Toggle with the "cheatsheetToggle" global shortcut (Super + / by default) or
- * `qs ipc call cheatsheet toggle|keybinds|system`. Ctrl+Tab switches tabs.
+ * `qs ipc call cheatsheet toggle|keybinds|system|claude`. Ctrl+Tab switches tabs.
  */
 Scope {
     id: root
@@ -32,11 +33,12 @@ Scope {
     })
     readonly property bool splitButtons: Config.options.cheatsheet.splitButtons
     readonly property bool fullscreen: Config.options.cheatsheet.displayMode === "fullscreen"
-    // 0 = Keybinds, 1 = System. Kept between openings.
+    // 0 = Keybinds, 1 = System, 2 = Claude. Kept between openings.
     property int currentTab: 0
     readonly property var tabs: [
         { "name": Translation.tr("Keybinds"), "icon": "keyboard" },
-        { "name": Translation.tr("System"), "icon": "monitor_heart" }
+        { "name": Translation.tr("System"), "icon": "monitor_heart" },
+        { "name": "Claude", "icon": "token" }
     ]
     readonly property int keyFontSize: Config.options.cheatsheet.fontSize.key
     readonly property int commentFontSize: Config.options.cheatsheet.fontSize.comment
@@ -112,7 +114,9 @@ Scope {
                 readonly property real wantedHeight: 16 + titleBar.implicitHeight + 14 + columnsRow.implicitHeight + 14 + filterBar.implicitHeight + 16
                 onWantedHeightChanged: if (panelWindow.query.length === 0) naturalHeight = wantedHeight
                 readonly property real systemHeight: 16 + titleBar.implicitHeight + 14 + systemPage.implicitHeight + 20
-                height: root.fullscreen ? parent.height : Math.min(parent.height - 100, Math.max(root.currentTab === 1 ? systemHeight : naturalHeight, 360))
+                readonly property real claudeHeight: 16 + titleBar.implicitHeight + 14 + claudePage.implicitHeight + 20
+                readonly property real tabHeight: root.currentTab === 1 ? systemHeight : root.currentTab === 2 ? claudeHeight : naturalHeight
+                height: root.fullscreen ? parent.height : Math.min(parent.height - 100, Math.max(tabHeight, 360))
                 Behavior on height {
                     enabled: !root.fullscreen
                     NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
@@ -297,6 +301,32 @@ Scope {
                         width: systemFlickable.width
                         // Only poll sensors while the tab is on screen
                         active: root.currentTab === 1
+                    }
+                }
+
+                // Claude plan usage
+                StyledFlickable {
+                    id: claudeFlickable
+                    visible: root.currentTab === 2
+                    anchors {
+                        top: titleBar.bottom
+                        bottom: parent.bottom
+                        left: parent.left
+                        right: parent.right
+                        topMargin: 14
+                        bottomMargin: 14
+                        leftMargin: 14
+                        rightMargin: 14
+                    }
+                    clip: true
+                    contentWidth: width
+                    contentHeight: claudePage.implicitHeight
+                    ClaudeUsagePage {
+                        id: claudePage
+                        // In full screen the page would stretch too wide; keep it readable
+                        width: Math.min(claudeFlickable.width, 1100)
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        active: root.currentTab === 2
                     }
                 }
 
@@ -519,6 +549,10 @@ Scope {
         }
         function system(): void {
             root.currentTab = 1;
+            GlobalStates.cheatsheetOpen = true;
+        }
+        function claude(): void {
+            root.currentTab = 2;
             GlobalStates.cheatsheetOpen = true;
         }
     }
