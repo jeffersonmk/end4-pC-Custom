@@ -246,13 +246,15 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
 
         RowLayout {
             id: statusItemRowLayout
-            spacing: 0
+            spacing: 5
             MaterialSymbol {
+                Layout.alignment: Qt.AlignVCenter
                 text: statusItem.icon
-                iconSize: Appearance.font.pixelSize.huge
+                iconSize: Appearance.font.pixelSize.larger
                 color: Appearance.colors.colSubtext
             }
             StyledText {
+                Layout.alignment: Qt.AlignVCenter
                 font.pixelSize: Appearance.font.pixelSize.small
                 text: statusItem.statusText
                 color: Appearance.colors.colSubtext
@@ -268,6 +270,7 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
     }
 
     component StatusSeparator: Rectangle {
+        Layout.alignment: Qt.AlignVCenter
         implicitWidth: 4
         implicitHeight: 4
         radius: implicitWidth / 2
@@ -312,7 +315,7 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
                     top: parent.top
                     topMargin: 0
                 }
-                implicitWidth: statusRowLayout.implicitWidth + 10 * 2
+                implicitWidth: statusRowLayout.implicitWidth + 14 * 2
                 implicitHeight: Math.max(statusRowLayout.implicitHeight, 38)
                 radius: Appearance.rounding.normal - root.padding
                 color: messageListView.atYBeginning ? Appearance.colors.colLayer2 : Appearance.colors.colLayer2Base
@@ -322,7 +325,7 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
                 RowLayout {
                     id: statusRowLayout
                     anchors.centerIn: parent
-                    spacing: 10
+                    spacing: 12
 
                     StatusItem {
                         icon: Ai.modelList.length > 0 ? "computer" : "cloud_off"
