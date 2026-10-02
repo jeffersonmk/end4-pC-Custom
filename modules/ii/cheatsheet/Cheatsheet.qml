@@ -29,6 +29,7 @@ Scope {
         useMouseSymbol: Config.options.cheatsheet.useMouseSymbol,
     })
     readonly property bool splitButtons: Config.options.cheatsheet.splitButtons
+    readonly property bool fullscreen: Config.options.cheatsheet.displayMode === "fullscreen"
     readonly property int keyFontSize: Config.options.cheatsheet.fontSize.key
     readonly property int commentFontSize: Config.options.cheatsheet.fontSize.comment
 
@@ -77,7 +78,9 @@ Scope {
             // only the window itself gets blurred); click outside to close
             Rectangle {
                 anchors.fill: parent
-                color: ColorUtils.transparentize(Appearance.colors.colLayer0Base, 0.65)
+                // Fullscreen: nearly opaque so it reads as its own screen (alpha stays above
+                // ignore_alpha, so Hyprland blurs it). Window: light dim, desktop stays visible.
+                color: ColorUtils.transparentize(Appearance.colors.colLayer0Base, root.fullscreen ? 0.12 : 0.65)
                 opacity: content.opacity
                 MouseArea {
                     anchors.fill: parent
@@ -86,6 +89,7 @@ Scope {
             }
 
             StyledRectangularShadow {
+                visible: !root.fullscreen
                 target: content
                 opacity: content.opacity
             }
@@ -94,15 +98,15 @@ Scope {
             Rectangle {
                 id: content
                 anchors.centerIn: parent
-                width: Math.min(parent.width - 120, 1560)
+                width: root.fullscreen ? parent.width : Math.min(parent.width - 120, 1560)
                 // Height follows the full (unfiltered) list so the window doesn't jump while filtering
                 property real naturalHeight: 0
                 readonly property real wantedHeight: 16 + titleBar.implicitHeight + 14 + columnsRow.implicitHeight + 14 + filterBar.implicitHeight + 16
                 onWantedHeightChanged: if (panelWindow.query.length === 0) naturalHeight = wantedHeight
-                height: Math.min(parent.height - 100, Math.max(naturalHeight, 360))
-                radius: Appearance.rounding.windowRounding
-                color: Appearance.colors.colLayer0
-                border.width: 1
+                height: root.fullscreen ? parent.height : Math.min(parent.height - 100, Math.max(naturalHeight, 360))
+                radius: root.fullscreen ? 0 : Appearance.rounding.windowRounding
+                color: root.fullscreen ? "transparent" : Appearance.colors.colLayer0
+                border.width: root.fullscreen ? 0 : 1
                 border.color: Appearance.colors.colLayer0Border
                 clip: true
                 focus: true

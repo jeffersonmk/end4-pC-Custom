@@ -589,6 +589,8 @@ Singleton {
                 // Symbol shown for the Super key. Empty = default Material icon.
                 // Nerd Font glyphs work here (e.g. 󰖳  󰌽  󰣇 ⌘)
                 property string superKey: ""
+                // "window" = centered rounded window, "fullscreen" = covers the whole screen
+                property string displayMode: "window"
                 property bool useMacSymbol: false
                 property bool splitButtons: false
                 property bool useMouseSymbol: false

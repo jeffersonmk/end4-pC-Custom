@@ -626,6 +626,21 @@ ContentPage {
             shape: MaterialShape.Shape.Cookie4Sided
 
             ContentSubsection {
+                title: Translation.tr("Display mode")
+                tooltip: Translation.tr("How the keybind cheat sheet (Super + /) opens")
+                GroupedList {
+                    ConfigSelectionArray {
+                        currentValue: Config.options.cheatsheet.displayMode
+                        onSelected: newValue => { Config.options.cheatsheet.displayMode = newValue }
+                        options: [
+                            { "displayName": Translation.tr("Window"), "icon": "web_asset", "value": "window" },
+                            { "displayName": Translation.tr("Fullscreen"), "icon": "fullscreen", "value": "fullscreen" }
+                        ]
+                    }
+                }
+            }
+
+            ContentSubsection {
                 title: Translation.tr("Super key symbol")
                 tooltip: Translation.tr("Shown in place of Super in the keybind cheat sheet (Super + /).\nYou can also edit cheatsheet.superKey in the config file")
                 GroupedList {
