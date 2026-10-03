@@ -618,6 +618,11 @@ Singleton {
                 property string action: "overlayOpen"
                 // Move around the widget overlay (Super + G) with the d-pad / stick while it's open
                 property bool navigateOverlay: true
+                // Pause the focused game while the overlay is open, per controller type:
+                // Xbox (and other standard pads, already blocked by the grab) and
+                // PlayStation / Nintendo pads (which games may read directly via hidraw)
+                property bool pauseGameXbox: false
+                property bool pauseGameDirect: true
             }
 
             property JsonObject conflictKiller: JsonObject {

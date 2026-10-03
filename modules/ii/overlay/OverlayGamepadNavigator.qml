@@ -73,6 +73,22 @@ Item {
     function centerOf(item) {
         return item.mapToItem(root, item.width / 2, item.height / 2);
     }
+    // Overlay widget (StyledOverlayWidget) an item belongs to
+    function widgetOf(item) {
+        for (let p = item; p; p = p.parent) {
+            if (p.overlayWidget !== undefined) return p.overlayWidget;
+            if (p.persistentStateEntry !== undefined && p.identifier !== undefined) return p;
+        }
+        return null;
+    }
+    function rectOf(item) {
+        const p = item.mapToItem(root, 0, 0);
+        return { x1: p.x, y1: p.y, x2: p.x + item.width, y2: p.y + item.height };
+    }
+    // Distance between two ranges (0 when they overlap)
+    function rangeGap(a1, a2, b1, b2) {
+        return Math.max(0, Math.max(a1, b1) - Math.min(a2, b2));
+    }
 
     // ---- movement
     function pickInitial(list) {
@@ -135,31 +151,39 @@ Item {
             return;
         }
         const from = centerOf(root.current);
+        const fr = rectOf(root.current);
         const horizontal = direction === "left" || direction === "right";
+        // Distances are measured between the edges of the items, not their centers:
+        // a wide slider right below a button must not win over the tabs that sit
+        // between them (e.g. Recorder › "Open recordings folder" › Output/Input tabs).
         // First look only at targets in the same row (or column); if there are none,
         // fall back to anything in that direction. Avoids e.g. "right" on the last
         // tab jumping up to a title bar button.
+        // Moving up/down, a widget's title bar buttons (pin/close) are only reachable from
+        // inside that same widget: going down from the Recorder lands on the Volume
+        // Mixer tabs, not on its close button
+        const currentWidget = widgetOf(root.current);
+        const skipTitlebar = t => !horizontal && t.overlayTitlebarButton === true
+            && t.overlayWidget !== currentWidget;
         const pick = aligned => {
             let best = null;
             let bestScore = Infinity;
             for (const t of list) {
-                if (t === root.current) continue;
+                if (t === root.current || skipTitlebar(t)) continue;
                 const c = centerOf(t);
+                const r = rectOf(t);
                 const dx = c.x - from.x;
                 const dy = c.y - from.y;
-                let primary, secondary;
+                let ahead, gap, sideGap, sideCenter;
                 switch (direction) {
-                    case "right": primary = dx; secondary = dy; break;
-                    case "left": primary = -dx; secondary = dy; break;
-                    case "down": primary = dy; secondary = dx; break;
-                    default: primary = -dy; secondary = dx; break;
+                    case "right": ahead = dx; gap = r.x1 - fr.x2; sideGap = rangeGap(fr.y1, fr.y2, r.y1, r.y2); sideCenter = dy; break;
+                    case "left": ahead = -dx; gap = fr.x1 - r.x2; sideGap = rangeGap(fr.y1, fr.y2, r.y1, r.y2); sideCenter = dy; break;
+                    case "down": ahead = dy; gap = r.y1 - fr.y2; sideGap = rangeGap(fr.x1, fr.x2, r.x1, r.x2); sideCenter = dx; break;
+                    default: ahead = -dy; gap = fr.y1 - r.y2; sideGap = rangeGap(fr.x1, fr.x2, r.x1, r.x2); sideCenter = dx; break;
                 }
-                if (primary <= 4) continue;
-                if (aligned) {
-                    const reach = horizontal ? (root.current.height + t.height) / 2 : (root.current.width + t.width) / 2;
-                    if (Math.abs(secondary) > reach) continue;
-                }
-                const score = primary + 2.5 * Math.abs(secondary);
+                if (ahead <= 4) continue;
+                if (aligned && sideGap > 0) continue;
+                const score = Math.max(0, gap) + 2.5 * sideGap + 0.2 * Math.abs(sideCenter);
                 if (score < bestScore) { bestScore = score; best = t; }
             }
             return best;
@@ -310,40 +334,133 @@ Item {
                 implicitHeight: 22
                 color: Appearance.colors.colOutlineVariant
             }
-            Hint { glyph: "✥"; label: Translation.tr("Move") }
-            Hint { glyph: Gamepad.buttonGlyph("BTN_SOUTH"); label: root.comboOpen ? Translation.tr("Choose") : Translation.tr("Select") }
-            Hint { glyph: Gamepad.buttonGlyph("BTN_EAST"); label: root.comboOpen ? Translation.tr("Cancel") : Translation.tr("Close") }
             Hint {
-                glyph: `${Gamepad.buttonGlyph("BTN_TL")} ${Gamepad.buttonGlyph("BTN_TR")}`
+                label: Translation.tr("Move")
+                SymbolBadge { symbol: "gamepad" }
+            }
+            Hint {
+                label: root.comboOpen ? Translation.tr("Choose") : Translation.tr("Select")
+                FaceBadge { button: "BTN_SOUTH" }
+            }
+            Hint {
+                label: root.comboOpen ? Translation.tr("Cancel") : Translation.tr("Close")
+                FaceBadge { button: "BTN_EAST" }
+            }
+            Hint {
+                visible: Gamepad.pausedGame.length > 0
+                label: Translation.tr("Game paused")
+                SymbolBadge { symbol: "pause"; filled: true }
+            }
+            Hint {
                 label: root.toast.length > 0 ? root.toast : Translation.tr("Volume")
+                BumperBadge { button: "BTN_TL" }
+                BumperBadge { button: "BTN_TR" }
             }
         }
     }
 
-    component Hint: Row {
+    // One legend entry: badge(s) + label
+    component Hint: RowLayout {
         id: hint
-        property string glyph
         property string label
-        spacing: 6
-        Rectangle {
-            anchors.verticalCenter: parent.verticalCenter
-            implicitWidth: Math.max(26, glyphText.implicitWidth + 12)
-            implicitHeight: 26
-            radius: height / 2
-            color: Appearance.colors.colSecondaryContainer
-            StyledText {
-                id: glyphText
-                anchors.centerIn: parent
-                text: hint.glyph
-                color: Appearance.colors.colOnSecondaryContainer
-                font.pixelSize: Appearance.font.pixelSize.small
-            }
+        default property alias badges: badgeRow.data
+        spacing: 7
+        Row {
+            id: badgeRow
+            Layout.alignment: Qt.AlignVCenter
+            spacing: 4
         }
         StyledText {
-            anchors.verticalCenter: parent.verticalCenter
+            Layout.alignment: Qt.AlignVCenter
             text: hint.label
             color: Appearance.colors.colOnSurface
             font.pixelSize: Appearance.font.pixelSize.small
+        }
+    }
+
+    readonly property int badgeSize: 26
+
+    // Round badge with a Material Symbol (d-pad, pause...)
+    component SymbolBadge: Rectangle {
+        id: symbolBadge
+        property string symbol
+        property bool filled: false
+        implicitWidth: root.badgeSize
+        implicitHeight: root.badgeSize
+        radius: width / 2
+        color: Appearance.colors.colSecondaryContainer
+        MaterialSymbol {
+            anchors.centerIn: parent
+            text: symbolBadge.symbol
+            iconSize: 18
+            fill: symbolBadge.filled ? 1 : 0
+            color: Appearance.colors.colOnSecondaryContainer
+        }
+    }
+
+    // Face button the way it looks on the controller: PlayStation shapes in their
+    // colors, Xbox / Nintendo letters
+    readonly property var psShapes: ({
+        "BTN_SOUTH": { symbol: "close", color: "#7fb2ea" },
+        "BTN_EAST": { symbol: "circle", color: "#ff7a7a" },
+        "BTN_NORTH": { symbol: "change_history", color: "#4fd1b4" },
+        "BTN_WEST": { symbol: "crop_square", color: "#e88cd2" },
+    })
+    readonly property var xboxColors: ({
+        "BTN_SOUTH": "#7ccf5a", "BTN_EAST": "#f0605a", "BTN_NORTH": "#f2c94c", "BTN_WEST": "#5aa9f0",
+    })
+    component FaceBadge: Rectangle {
+        id: faceBadge
+        property string button
+        readonly property var ps: Gamepad.brand === "playstation" ? (root.psShapes[button] ?? null) : null
+        implicitWidth: root.badgeSize
+        implicitHeight: root.badgeSize
+        radius: width / 2
+        color: Appearance.colors.colSecondaryContainer
+        MaterialSymbol {
+            visible: faceBadge.ps !== null
+            anchors.centerIn: parent
+            text: faceBadge.ps?.symbol ?? ""
+            iconSize: faceBadge.button === "BTN_EAST" ? 15 : 17
+            fill: 0
+            font.weight: Font.Bold
+            color: faceBadge.ps?.color ?? Appearance.colors.colOnSecondaryContainer
+        }
+        StyledText {
+            visible: faceBadge.ps === null
+            anchors.centerIn: parent
+            text: Gamepad.buttonGlyph(faceBadge.button)
+            font.pixelSize: Appearance.font.pixelSize.small
+            font.weight: Font.Bold
+            color: Gamepad.brand === "xbox" ? (root.xboxColors[faceBadge.button] ?? Appearance.colors.colOnSecondaryContainer)
+                : Appearance.colors.colOnSecondaryContainer
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+        }
+    }
+
+    // Shoulder button: a pill rounded more on the outer top corner, like the real bumper
+    component BumperBadge: Rectangle {
+        id: bumperBadge
+        property string button
+        readonly property bool isLeft: button === "BTN_TL" || button === "BTN_TL2"
+        implicitWidth: Math.max(34, bumperText.implicitWidth + 14)
+        implicitHeight: root.badgeSize - 4
+        anchors.verticalCenter: parent?.verticalCenter
+        topLeftRadius: isLeft ? height * 0.75 : height * 0.3
+        topRightRadius: isLeft ? height * 0.3 : height * 0.75
+        bottomLeftRadius: height * 0.3
+        bottomRightRadius: height * 0.3
+        color: Appearance.colors.colSecondaryContainer
+        StyledText {
+            id: bumperText
+            anchors.centerIn: parent
+            text: Gamepad.buttonGlyph(bumperBadge.button)
+            font.pixelSize: Appearance.font.pixelSize.smaller
+            font.weight: Font.Bold
+            color: Appearance.colors.colOnSecondaryContainer
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
         }
     }
 }

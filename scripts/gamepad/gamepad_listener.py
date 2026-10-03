@@ -172,6 +172,138 @@ def open_companions(devices):
     return companions
 
 
+# ---- pausing the game behind the overlay
+# Some games read controllers through hidraw (e.g. PCSX2's DualSense/DualShock
+# "enhanced mode", Steam Input), which an evdev grab can't block. For those the game
+# is paused instead (SIGSTOP) while the overlay is open, and resumed (SIGCONT) when
+# it closes. The PIDs are written to a state file so a crash/restart of the shell
+# never leaves a game frozen.
+STATE_FILE = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "quickshell-gamepad-paused.json")
+EMULATOR_CLASSES = ("pcsx2", "rpcs3", "dolphin", "duckstation", "ppsspp", "cemu", "yuzu", "suyu",
+                    "citron", "ryujinx", "eden", "retroarch", "xemu", "xenia", "shadps4", "azahar",
+                    "lime3ds", "citra", "melonds", "flycast", "mgba", "redream", "vita3k")
+NEVER_PAUSE = {"Hyprland", "qs", "quickshell", "systemd", "kitty", "steam", "steamwebhelper"}
+
+
+def hypr(*args):
+    import subprocess
+    try:
+        return subprocess.run(["hyprctl", *args], capture_output=True, text=True, timeout=2).stdout
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def looks_like_game(win):
+    cls = (win.get("class") or win.get("initialClass") or "").lower()
+    if cls.startswith("steam_app_") or "gamescope" in cls:
+        return True
+    if any(e in cls for e in EMULATOR_CLASSES):
+        return True
+    # Anything else fullscreen (games launched outside Steam, Wine/Lutris/Heroic...)
+    return bool(win.get("fullscreen"))
+
+
+def process_tree(root_pid):
+    """root_pid plus all its descendants (games often run in child processes: Proton,
+    wine, launchers...)."""
+    children = {}
+    for entry in os.listdir("/proc"):
+        if not entry.isdigit():
+            continue
+        try:
+            with open(f"/proc/{entry}/stat") as f:
+                stat = f.read()
+            ppid = int(stat[stat.rindex(")") + 2:].split()[1])
+        except (OSError, ValueError, IndexError):
+            continue
+        children.setdefault(ppid, []).append(int(entry))
+    pids, todo = [], [root_pid]
+    while todo:
+        pid = todo.pop()
+        if pid in pids:
+            continue
+        pids.append(pid)
+        todo.extend(children.get(pid, []))
+    return pids
+
+
+def comm_of(pid):
+    try:
+        with open(f"/proc/{pid}/comm") as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
+def send_signal(pids, sig):
+    for pid in pids:
+        try:
+            os.kill(pid, sig)
+        except OSError:
+            pass
+
+
+def anr_dialog_enabled():
+    try:
+        return bool(json.loads(hypr("getoption", "misc:enable_anr_dialog", "-j")).get("bool", True))
+    except ValueError:
+        return True
+
+
+def set_anr_dialog(on):
+    # A stopped game stops answering pings; don't let Hyprland pop "not responding"
+    hypr("eval", f"hl.config({{ misc = {{ enable_anr_dialog = {'true' if on else 'false'} }} }})")
+
+
+def pause_game():
+    """Pauses the focused window's process tree if it looks like a game.
+    Returns the paused state dict, or None."""
+    import signal
+    try:
+        win = json.loads(hypr("activewindow", "-j") or "{}")
+    except ValueError:
+        return None
+    pid = int(win.get("pid") or 0)
+    if pid <= 1 or pid == os.getpid() or not looks_like_game(win):
+        return None
+    pids = [p for p in process_tree(pid) if comm_of(p) not in NEVER_PAUSE and p != os.getpid()]
+    if not pids:
+        return None
+    state = {"pids": pids, "anr": anr_dialog_enabled(), "name": win.get("title") or win.get("class") or ""}
+    try:
+        with open(STATE_FILE, "w") as f:
+            json.dump(state, f)
+    except OSError:
+        pass
+    if state["anr"]:
+        set_anr_dialog(False)
+    send_signal(pids, signal.SIGSTOP)
+    return state
+
+
+def resume_game(state):
+    import signal
+    if not state:
+        return
+    send_signal(state.get("pids", []), signal.SIGCONT)
+    if state.get("anr", True):
+        set_anr_dialog(True)
+    try:
+        os.remove(STATE_FILE)
+    except OSError:
+        pass
+
+
+def resume_leftover():
+    """A previous listener died while a game was paused: resume it."""
+    try:
+        with open(STATE_FILE) as f:
+            state = json.load(f)
+    except (OSError, ValueError):
+        return
+    resume_game(state)
+
+
 def close_all(devs):
     for dev in devs.values():
         try:
@@ -286,6 +418,9 @@ def main():
     reported_permission = False
     nav_on = False
     companions = {}
+    global paused
+    if mode == "listen":
+        resume_leftover()
     nav = Navigator()
     stdin_open = mode == "listen" and not sys.stdin.isatty()
     stdin_buffer = b""
@@ -356,6 +491,17 @@ def main():
                         set_grab(companions, False)
                         close_all(companions)
                         companions = {}
+                    elif command == "pause" and paused is None:
+                        paused = pause_game()
+                        if paused:
+                            emit({"event": "paused", "name": paused["name"]})
+                    elif command == "resume" and paused is not None:
+                        # Let the controller grab go first, so the game doesn't see the
+                        # button that closed the overlay
+                        time.sleep(0.25)
+                        resume_game(paused)
+                        paused = None
+                        emit({"event": "resumed"})
                 continue
 
             path = fds[fd]
@@ -401,6 +547,8 @@ def main():
                         nav.stick_axis(dev, path, ev.code, ev.value)
 
 
+paused = None
+
 if __name__ == "__main__":
     import signal
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
@@ -408,3 +556,6 @@ if __name__ == "__main__":
         main()
     except (KeyboardInterrupt, BrokenPipeError):
         pass
+    finally:
+        # Never leave a game frozen (shell closed/restarted, listener stopped...)
+        resume_game(paused)

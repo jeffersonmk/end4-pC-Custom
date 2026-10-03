@@ -308,6 +308,9 @@ AbstractOverlayWidget {
 
     component TitlebarButton: RippleButton {
         id: titlebarButton
+        // Lets the controller navigation tell title bar buttons (pin/close) apart
+        readonly property bool overlayTitlebarButton: true
+        readonly property var overlayWidget: root
         required property string materialSymbol
         buttonRadius: height / 2
         implicitHeight: contentItem.implicitHeight

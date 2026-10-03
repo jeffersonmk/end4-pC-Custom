@@ -326,6 +326,26 @@ ContentPage {
                         text: Translation.tr("While the overlay (Super + G) is open: d-pad / left stick to move,\nbottom button to select, right button to close, bumpers for volume.\nThe controller is reserved for the shell only while the overlay is open.")
                     }
                 }
+                ConfigSwitch {
+                    enabled: Config.options.gamepad.enable && Config.options.gamepad.navigateOverlay
+                    buttonIcon: "pause_circle"
+                    text: Translation.tr("Pause the game: Xbox and standard controllers")
+                    checked: Config.options.gamepad.pauseGameXbox
+                    onCheckedChanged: { Config.options.gamepad.pauseGameXbox = checked }
+                    StyledToolTip {
+                        text: Translation.tr("Pauses the focused game while the overlay is open, when it was opened with an Xbox (or other standard) controller.\nThese controllers are already blocked from the game, so this is optional.")
+                    }
+                }
+                ConfigSwitch {
+                    enabled: Config.options.gamepad.enable && Config.options.gamepad.navigateOverlay
+                    buttonIcon: "pause_circle"
+                    text: Translation.tr("Pause the game: PlayStation and Nintendo controllers")
+                    checked: Config.options.gamepad.pauseGameDirect
+                    onCheckedChanged: { Config.options.gamepad.pauseGameDirect = checked }
+                    StyledToolTip {
+                        text: Translation.tr("Many games (emulators, Steam) read these controllers directly,\nso they would still react to the buttons behind the overlay.")
+                    }
+                }
                 ConfigComboBox {
                     Layout.fillWidth: true
                     enabled: Config.options.gamepad.enable

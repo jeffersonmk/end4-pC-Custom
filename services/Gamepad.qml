@@ -37,13 +37,31 @@ Singleton {
 
     readonly property bool connected: devices.length > 0
     // "xbox" | "playstation" | "nintendo" | "generic" | "" (none connected)
-    readonly property string brand: devices.length > 0 ? (devices[0].brand ?? "generic") : ""
+    // The controller that last pressed the shortcut button wins (several can be connected)
+    property string activeBrand: ""
+    readonly property string brand: root.activeBrand !== "" && root.devices.some(d => d.brand === root.activeBrand)
+        ? root.activeBrand : (devices.length > 0 ? (devices[0].brand ?? "generic") : "")
     readonly property string deviceName: devices.length > 0 ? devices[0].name : ""
 
     // Overlay navigation is on while the overlay is open and a controller is connected
     readonly property bool navActive: root.enabled && root.connected && !root.learning
         && (Config.options.gamepad?.navigateOverlay ?? true) && GlobalStates.overlayOpen
     onNavActiveChanged: root.sendNavMode()
+
+    // Pause the game behind the overlay while it's open. Needed for controllers that games
+    // read directly (hidraw), which the controller grab can't block: PlayStation and
+    // Nintendo pads in emulators/Steam. Xbox pads are blocked by the grab already.
+    // Separate options for Xbox/standard pads and for PlayStation/Nintendo pads; the
+    // controller in use (the one that opened the overlay) decides.
+    readonly property bool brandReadDirectly: root.brand === "playstation" || root.brand === "nintendo"
+    readonly property bool pauseWanted: root.navActive && (root.brandReadDirectly
+        ? (Config.options.gamepad?.pauseGameDirect ?? true)
+        : (Config.options.gamepad?.pauseGameXbox ?? false))
+    onPauseWantedChanged: root.sendPauseMode()
+    property string pausedGame: ""
+    function sendPauseMode() {
+        if (listenProc.running) listenProc.write(root.pauseWanted ? "pause\n" : "resume\n");
+    }
 
     signal navigated(string direction)   // "up" | "down" | "left" | "right"
     signal buttonPressed(string button)  // evdev name, e.g. "BTN_SOUTH"
@@ -134,13 +152,23 @@ Singleton {
             root.error = msg.error ?? "crashed";
             break;
         case "press":
-            if (!learn) root.trigger();
+            if (!learn) {
+                const pressed = root.devices.find(d => d.name === msg.device);
+                if (pressed) root.activeBrand = pressed.brand ?? "generic";
+                root.trigger();
+            }
             break;
         case "nav":
             if (!learn && root.navActive) root.navigated(msg.dir);
             break;
         case "button":
             if (!learn && root.navActive) root.buttonPressed(msg.button);
+            break;
+        case "paused":
+            root.pausedGame = msg.name ?? "";
+            break;
+        case "resumed":
+            root.pausedGame = "";
             break;
         case "learned":
             if (learn) {
@@ -161,8 +189,13 @@ Singleton {
             onRead: line => root.handleLine(line, false)
         }
         onRunningChanged: {
-            if (running) root.sendNavMode();
-            else if (!root.enabled) root.devices = [];
+            if (running) {
+                root.sendNavMode();
+                if (root.pauseWanted) root.sendPauseMode();
+            } else {
+                root.pausedGame = "";
+                if (!root.enabled) root.devices = [];
+            }
         }
         onExited: (code, status) => {
             // Restart after an unexpected exit (e.g. Python error), with a small delay
