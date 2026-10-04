@@ -681,14 +681,15 @@ ContentPage {
                 visible: settingsClock.cookiePresent
                 title: Translation.tr("Cookie clock settings")
                 GroupedList {   
-                    ConfigSelectionArray {
+                    ConfigComboBox {
                         text: Translation.tr("Clock preset")
-                        icon: "design_services"
+                        buttonIcon: "design_services"
                         currentValue: Config.options.background.widgets.clock.cookie.preset
+                        fieldWidth: 45
                         onSelected: newValue => {
                             Config.options.background.widgets.clock.cookie.preset = newValue;
                         }
-                        options: [
+                        model: [
                             { value: "none", displayName: Translation.tr("None (manual)") },
                             { value: "abstract", displayName: Translation.tr("Abstract") },
                             { value: "anime", displayName: Translation.tr("Anime") },
