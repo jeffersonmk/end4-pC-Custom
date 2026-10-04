@@ -15,8 +15,6 @@ Item {
         return Translation.tr("Copy region (LMB) or annotate (RMB)");
     case RegionSelection.SnipAction.Edit:
         return Translation.tr("Annotate region");
-    case RegionSelection.SnipAction.Search:
-        return Translation.tr("Search with Google Lens");
     case RegionSelection.SnipAction.CharRecognition:
         return Translation.tr("Recognize text");
     case RegionSelection.SnipAction.Record:
@@ -27,8 +25,6 @@ Item {
     case RegionSelection.SnipAction.Copy:
     case RegionSelection.SnipAction.Edit:
         return "content_cut";
-    case RegionSelection.SnipAction.Search:
-        return "image_search";
     case RegionSelection.SnipAction.CharRecognition:
         return "document_scanner";
     case RegionSelection.SnipAction.Record:

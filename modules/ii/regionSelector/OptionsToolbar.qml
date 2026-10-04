@@ -33,7 +33,6 @@ Toolbar {
     readonly property var screenshotActions: [
         {"icon": "content_copy", "tip": Translation.tr("Copy to clipboard (right click to annotate)"), "action": RegionSelection.SnipAction.Copy},
         {"icon": "edit", "tip": Translation.tr("Annotate"), "action": RegionSelection.SnipAction.Edit},
-        {"icon": "image_search", "tip": Translation.tr("Search with Google Lens"), "action": RegionSelection.SnipAction.Search},
         {"icon": "document_scanner", "tip": Translation.tr("Recognize text"), "action": RegionSelection.SnipAction.CharRecognition}
     ]
 

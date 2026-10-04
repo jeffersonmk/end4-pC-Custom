@@ -50,9 +50,8 @@ Item {
     }
 
     function setClockPreset(category) {
-        if (!Config.options.background.widgets.clock.cookie.aiStyling) return;
-        if (category === "") return;
-        print("[Cookie clock] Setting clock preset for category: " + category)
+        if (category === "" || category === "none") return;
+        print("[Cookie clock] Setting clock preset: " + category)
         // "abstract", "anime", "city", "minimalist", "landscape", "plants", "person", "space"
         if (category == "abstract") {
             applyStyle(9, "none", "fill", "medium", "dot", "bubble")
@@ -71,16 +70,18 @@ Item {
         }
     }
 
-    FileView {
-        id: categoryFileView
-        path: Config.ready ? Directories.generatedWallpaperCategoryPath : ""
-        watchChanges: true
-        onFileChanged: reload()
-        onLoaded: {
-            root.setClockPreset(categoryFileView.text().trim())
+    // Apply preset from config when it changes
+    Connections {
+        target: Config.options.background.widgets.clock.cookie
+        function onPresetChanged() {
+            root.setClockPreset(Config.options.background.widgets.clock.cookie.preset)
         }
-        onLoadFailed: (error) => {}
     }
+    Component.onCompleted: {
+        root.setClockPreset(Config.options.background.widgets.clock.cookie.preset)
+    }
+
+
 
     property bool useSineCookie: Config.options.background.widgets.clock.cookie.useSineCookie
     Item {

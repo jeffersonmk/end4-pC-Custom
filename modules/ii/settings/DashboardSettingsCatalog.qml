@@ -692,12 +692,6 @@ QtObject {
             ]
         },
         {
-            page: Translation.tr("Services"), title: Translation.tr("Music Recognition"), icon: "music_cast", cards: [
-                { type: "spin", key: "services:Total duration timeout (s)", title: Translation.tr("Timeout (s)"), icon: "timer_off" },
-                { type: "spin", key: "services:Polling interval (s)", title: Translation.tr("Polling interval (s)"), icon: "av_timer" }
-            ]
-        },
-        {
             page: Translation.tr("Services"), title: Translation.tr("Save paths"), icon: "file_open", cards: [
                 { type: "text", w: 2, key: "services:Video recording path", title: Translation.tr("Video recording path"), icon: "video_file" },
                 { type: "text", w: 2, key: "services:Screenshot path", title: Translation.tr("Screenshot path (empty = copy)"), icon: "screenshot_monitor" }

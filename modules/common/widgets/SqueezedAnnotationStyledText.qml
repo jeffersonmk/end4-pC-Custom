@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import qs.modules.common
 
-// Annotation similar to how Google Lens does it.
+// Compact annotation text for the region selector.
 Item {
     id: root
 

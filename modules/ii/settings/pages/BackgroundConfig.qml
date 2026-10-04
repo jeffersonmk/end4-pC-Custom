@@ -681,13 +681,23 @@ ContentPage {
                 visible: settingsClock.cookiePresent
                 title: Translation.tr("Cookie clock settings")
                 GroupedList {   
-                    ConfigSwitch {  
-                        buttonIcon: "wand_stars"
-                        text: Translation.tr("Auto styling with Gemini")
-                        checked: Config.options.background.widgets.clock.cookie.aiStyling
-                        onCheckedChanged: {
-                            Config.options.background.widgets.clock.cookie.aiStyling = checked;
+                    ConfigSelectionArray {
+                        text: Translation.tr("Clock preset")
+                        icon: "design_services"
+                        currentValue: Config.options.background.widgets.clock.cookie.preset
+                        onSelected: newValue => {
+                            Config.options.background.widgets.clock.cookie.preset = newValue;
                         }
+                        options: [
+                            { value: "none", displayName: Translation.tr("None (manual)") },
+                            { value: "abstract", displayName: Translation.tr("Abstract") },
+                            { value: "anime", displayName: Translation.tr("Anime") },
+                            { value: "city", displayName: Translation.tr("City / Space") },
+                            { value: "minimalist", displayName: Translation.tr("Minimalist") },
+                            { value: "landscape", displayName: Translation.tr("Landscape") },
+                            { value: "plants", displayName: Translation.tr("Plants") },
+                            { value: "person", displayName: Translation.tr("Person") },
+                        ]
                     }
 
                     ConfigSwitch {
@@ -750,11 +760,7 @@ ContentPage {
                     }
                 }
 
-                GroupedList {
-                    Layout.topMargin: 6
-                    visible: Config.options.background.widgets.clock.cookie.aiStyling
-                    GeminiApiKeyField {}
-                }
+
             }
 
             GroupedList {

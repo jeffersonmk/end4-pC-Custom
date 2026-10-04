@@ -124,7 +124,6 @@ Singleton {
         "desktop:Font size": root.optionSlider("background.widgets.clock.digital.font.size", 50, 700, [90], false),
         "desktop:Font width": root.optionSlider("background.widgets.clock.digital.font.width", 25, 125, [100], false),
         "desktop:Font roundness": root.optionSlider("background.widgets.clock.digital.font.roundness", 0, 100, [], false),
-        "desktop:Auto styling with Gemini": root.optionSwitch("background.widgets.clock.cookie.aiStyling"),
         "desktop:Use old sine wave cookie implementation": root.optionSwitch("background.widgets.clock.cookie.useSineCookie"),
         "desktop:Sides": root.optionSpin("background.widgets.clock.cookie.sides", 0, 40, 1),
         "desktop:Constantly rotate": root.optionSwitch("background.widgets.clock.cookie.constantlyRotate"),
@@ -237,9 +236,6 @@ Singleton {
         "interface:Extra wallpaper zoom (%)": root.optionScaledSpin("lock.blur.extraZoom", 1, 150, 2, 100),
         "interface:Enable opening zoom animation": root.optionSwitch("overlay.openingZoomAnimation"),
         "interface:Darken screen": root.optionSwitch("overlay.darkenScreen"),
-        "interface:Region selector (screen snipping/Google Lens)/Windows": root.optionSwitch("regionSelector.targetRegions.windows"),
-        "interface:Region selector (screen snipping/Google Lens)/Layers": root.optionSwitch("regionSelector.targetRegions.layers"),
-        "interface:Region selector (screen snipping/Google Lens)/Content": root.optionSwitch("regionSelector.targetRegions.content"),
         "interface:Show aim lines": root.optionSwitch("regionSelector.rect.showAimLines"),
         "interface:Stroke width": root.optionSpin("regionSelector.circle.strokeWidth", 1, 20, 1),
         "interface:Padding": root.optionSpin("regionSelector.circle.padding", 0, 100, 5),
@@ -262,15 +258,6 @@ Singleton {
             value => { Config.options.wallpaperSelector.changeInterval = value * 60000; },
             0, 1440, 5
         ),
-        "interface:Selection Type": root.select(
-            () => Config.options.search.imageSearch.useCircleSelection ? "circle" : "rectangles",
-            value => { Config.options.search.imageSearch.useCircleSelection = (value === "circle"); },
-            [
-                { displayName: Translation.tr("Rectangular selection"), icon: "activity_zone", value: "rectangles" },
-                { displayName: Translation.tr("Circle to Search"),      icon: "gesture",       value: "circle" }
-            ]
-        ),
-
         "bar:Show Background": root.optionSwitch("bar.showBackground"),
         "bar:Overlap windows when center-only": root.optionSwitch("bar.centerOnlyReserveFrame"),
         "bar:Follow Frame Color": root.optionSwitch("bar.followFrameColor"),
@@ -409,8 +396,6 @@ Singleton {
         "services:Enable GPS based location": root.toggle(() => Config.options.bar.weather.enableGPS, v => Config.options.bar.weather.enableGPS = v),
         "services:Fahrenheit unit": root.toggle(() => Config.options.bar.weather.useUSCS, v => Config.options.bar.weather.useUSCS = v),
 
-        "services:Total duration timeout (s)": root.spin(() => Config.options.musicRecognition.timeout, v => Config.options.musicRecognition.timeout = v, 10, 100, 2),
-        "services:Polling interval (s)": root.spin(() => Config.options.musicRecognition.interval, v => Config.options.musicRecognition.interval = v, 2, 10, 1),
         "services:Check interval (mins)": root.spin(() => Config.options.updates.checkInterval, v => Config.options.updates.checkInterval = v, 60, 1440, 60),
         "services:Polling interval (m)": root.spin(() => Config.options.bar.weather.fetchInterval, v => Config.options.bar.weather.fetchInterval = v, 5, 50, 5),
 
