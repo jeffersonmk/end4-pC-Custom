@@ -60,9 +60,11 @@ Singleton {
 
     property var pendingArgs: []
 
-    function run(args) {
+    function run(args, closeSettings = true) {
+        const shouldClose = closeSettings && Config.options.settings.style !== "dashboard"
         root.pendingArgs = args
-        GlobalStates.settingsOpen = false
+        if (shouldClose) GlobalStates.settingsOpen = false
+        applyTimer.interval = shouldClose ? 800 : 100
         applyTimer.restart()
     }
 
@@ -72,13 +74,13 @@ Singleton {
         onTriggered: Quickshell.execDetached(["bash", FileUtils.trimFileProtocol(Directories.wallpaperSwitchScriptPath), "--noswitch", ...root.pendingArgs])
     }
 
-    function setScheme(id) {
-        root.run(["--scheme-name", id === "" ? "clear" : id])
+    function setScheme(id, closeSettings = true) {
+        root.run(["--scheme-name", id === "" ? "clear" : id], closeSettings)
     }
 
-    function setAccent(slot, name) {
+    function setAccent(slot, name, closeSettings = true) {
         if (root.current === "") return
-        root.run(["--scheme-name", root.current, slot === "primary" ? "--scheme-primary" : "--scheme-secondary", name])
+        root.run(["--scheme-name", root.current, slot === "primary" ? "--scheme-primary" : "--scheme-secondary", name], closeSettings)
     }
 
     function reload() {
