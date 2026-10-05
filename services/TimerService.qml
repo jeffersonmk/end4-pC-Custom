@@ -61,6 +61,22 @@ Singleton {
     }
 
     // Pomodoro
+    // When focus/break lengths are edited while stopped, show the new length right away
+    onPomodoroLapDurationChanged: {
+        if (!pomodoroRunning)
+            pomodoroSecondsLeft = pomodoroLapDuration;
+    }
+
+    function setFocusMinutes(minutes) {
+        const m = Math.max(1, Math.min(120, Math.round(minutes)));
+        Config.options.time.pomodoro.focus = m * 60;
+    }
+
+    function setBreakMinutes(minutes) {
+        const m = Math.max(1, Math.min(60, Math.round(minutes)));
+        Config.options.time.pomodoro.breakTime = m * 60;
+    }
+
     function refreshPomodoro() {
         // Work <-> break ?
         if (getCurrentTimeInSeconds() >= Persistent.states.timer.pomodoro.start + pomodoroLapDuration) {

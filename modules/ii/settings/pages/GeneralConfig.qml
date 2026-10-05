@@ -244,6 +244,85 @@ ContentPage {
                     }
                 }
             }
+
+            ContentSubsection {
+                title: Translation.tr("Pomodoro")
+
+                GroupedList {
+                    ConfigSelectionArray {
+                        text: Translation.tr("Clock style")
+                        icon: "timer"
+                        currentValue: Config.options.time.pomodoro.style
+                        onSelected: newValue => {
+                            Config.options.time.pomodoro.style = newValue;
+                        }
+                        options: [
+                            { value: "dial", displayName: Translation.tr("Dial"), icon: "nest_clock_farsight_analog" },
+                            { value: "digital", displayName: Translation.tr("Digital"), icon: "123" }
+                        ]
+                    }
+
+                    ConfigSpinBox {
+                        id: pomoFocusSpin
+                        icon: "visibility"
+                        text: Translation.tr("Focus time (min)")
+                        // Binding element keeps it in sync when the sidebar changes the value
+                        Binding { target: pomoFocusSpin; property: "value"; value: Math.round(Config.options.time.pomodoro.focus / 60) }
+                        from: 1
+                        to: 120
+                        stepSize: 1
+                        onValueChanged: {
+                            if (Config.ready && value >= from && value * 60 !== Config.options.time.pomodoro.focus)
+                                Config.options.time.pomodoro.focus = value * 60;
+                        }
+                    }
+
+                    ConfigSpinBox {
+                        id: pomoBreakSpin
+                        icon: "coffee"
+                        text: Translation.tr("Break time (min)")
+                        // Binding element keeps it in sync when the sidebar changes the value
+                        Binding { target: pomoBreakSpin; property: "value"; value: Math.round(Config.options.time.pomodoro.breakTime / 60) }
+                        from: 1
+                        to: 60
+                        stepSize: 1
+                        onValueChanged: {
+                            if (Config.ready && value >= from && value * 60 !== Config.options.time.pomodoro.breakTime)
+                                Config.options.time.pomodoro.breakTime = value * 60;
+                        }
+                    }
+
+                    ConfigSpinBox {
+                        id: pomoLongSpin
+                        icon: "park"
+                        text: Translation.tr("Long break time (min)")
+                        // Binding element keeps it in sync when the sidebar changes the value
+                        Binding { target: pomoLongSpin; property: "value"; value: Math.round(Config.options.time.pomodoro.longBreak / 60) }
+                        from: 1
+                        to: 90
+                        stepSize: 1
+                        onValueChanged: {
+                            if (Config.ready && value >= from && value * 60 !== Config.options.time.pomodoro.longBreak)
+                                Config.options.time.pomodoro.longBreak = value * 60;
+                        }
+                    }
+
+                    ConfigSpinBox {
+                        id: pomoCyclesSpin
+                        icon: "repeat"
+                        text: Translation.tr("Cycles before long break")
+                        // Binding element keeps it in sync when the sidebar changes the value
+                        Binding { target: pomoCyclesSpin; property: "value"; value: Config.options.time.pomodoro.cyclesBeforeLongBreak }
+                        from: 1
+                        to: 10
+                        stepSize: 1
+                        onValueChanged: {
+                            if (Config.ready && value >= from && value !== Config.options.time.pomodoro.cyclesBeforeLongBreak)
+                                Config.options.time.pomodoro.cyclesBeforeLongBreak = value;
+                        }
+                    }
+                }
+            }
         }
 
         ContentSection {

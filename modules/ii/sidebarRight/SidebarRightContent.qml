@@ -434,8 +434,8 @@ Item {
 
             Loader {
                 id: classicLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
+                // Classic panel has its own natural width; center it like before the upstream merge
+                anchors.horizontalCenter: parent.horizontalCenter
                 active: Config.options.sidebar.quickToggles.style === "classic"
                 sourceComponent: ClassicQuickPanel {}
             }
