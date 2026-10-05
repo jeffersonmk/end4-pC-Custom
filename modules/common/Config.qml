@@ -844,10 +844,13 @@ Singleton {
             }
 
             property JsonObject sidebar: JsonObject {
+                property list<string> sectionOrder: ["banner", "quickToggles", "sliders", "media", "notifications", "bottom"]
                 property bool banner: true
                 property bool bottomGroup: true
                 property bool mediaPlayer: false
                 property string bannerImage: ""
+                property real bannerFocusX: 0.5
+                property real bannerFocusY: 0.5
                 property bool keepRightSidebarLoaded: true
                 property JsonObject media: JsonObject {
                     property bool enable: true

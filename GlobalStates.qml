@@ -56,6 +56,7 @@ Singleton {
     property string osdIndicatorType: "volume"
     property bool barCenterOnly: false
     property int dashboardPage: 0
+    property string dashboardGroup: ""
     property var frameHover: ({})
     function setFrameHover(screenName, side, hovered) {
         const key = `${screenName}:${side}`;

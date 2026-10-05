@@ -16,6 +16,8 @@ Item {
     property bool confirmDelete: false
     property bool overwritten: false
     property bool exported: false
+    property bool installed: false
+    property bool renaming: false
     readonly property bool online: preset.source === "online"
     readonly property bool busy: online && PresetsOnline.downloadingName === preset.name
 
@@ -31,7 +33,16 @@ Item {
     signal applyRequested()
     signal overwriteRequested()
     signal exportRequested()
+    signal uploadRequested()
+    signal installRequested()
     signal deleteRequested()
+    signal renameRequested(string newName)
+
+    function commitRename() {
+        const next = titleInput.text.trim();
+        renaming = false;
+        if (next !== "" && next.replace(/\s/g, "_") !== preset.name) renameRequested(next);
+    }
 
     readonly property var info: preset.summary ?? ({})
     readonly property var barIcons: ({
@@ -51,9 +62,30 @@ Item {
     }
 
     Timer {
+        id: installedTimer
+        interval: 2200
+        onTriggered: root.installed = false
+    }
+
+    Timer {
         id: exportedTimer
         interval: 2200
         onTriggered: root.exported = false
+    }
+
+    Binding {
+        target: root.pager
+        property: "editingText"
+        value: root.renaming
+    }
+
+    Timer {
+        id: renameFocusTimer
+        interval: 80
+        onTriggered: {
+            titleInput.forceActiveFocus();
+            titleInput.selectAll();
+        }
     }
 
     Timer {
@@ -206,13 +238,60 @@ Item {
                     anchors.margins: 18
                     spacing: 10
 
-                    StyledText {
+                    Item {
                         Layout.fillWidth: true
-                        text: root.preset.name.replace(/_/g, " ")
-                        font.pixelSize: 28
-                        font.weight: Font.DemiBold
-                        color: Appearance.colors.colOnSecondaryContainer
-                        elide: Text.ElideRight
+                        implicitHeight: titleText.implicitHeight
+
+                        StyledText {
+                            id: titleText
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            visible: !root.renaming
+                            text: PresetsOnline.displayName(root.preset.name).replace(/_/g, " ")
+                            font.pixelSize: 28
+                            font.weight: Font.DemiBold
+                            color: Appearance.colors.colOnSecondaryContainer
+                            elide: Text.ElideRight
+                        }
+
+                        TextInput {
+                            id: titleInput
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.rightMargin: 44
+                            visible: root.renaming
+                            clip: true
+                            font.pixelSize: 28
+                            font.weight: Font.DemiBold
+                            font.family: Appearance.font.family.main
+                            color: Appearance.colors.colOnSecondaryContainer
+                            selectionColor: Appearance.colors.colPrimary
+                            onAccepted: root.commitRename()
+                            onActiveFocusChanged: if (!activeFocus && root.renaming) Qt.callLater(() => forceActiveFocus())
+                            Keys.onEscapePressed: root.renaming = false
+                        }
+
+                        RippleButton {
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: root.renaming
+                            implicitWidth: 36
+                            implicitHeight: 36
+                            buttonRadius: 18
+                            colBackground: Appearance.colors.colPrimary
+                            colBackgroundHover: Appearance.colors.colPrimaryHover
+                            colRipple: Appearance.colors.colPrimaryActive
+                            downAction: () => Qt.callLater(() => root.commitRename())
+                            contentItem: MaterialSymbol {
+                                anchors.centerIn: parent
+                                horizontalAlignment: Text.AlignHCenter
+                                text: "check"
+                                iconSize: 22
+                                fill: 1
+                                color: Appearance.colors.colOnPrimary
+                            }
+                        }
                     }
 
                     StyledText {
@@ -330,9 +409,12 @@ Item {
 
             Repeater {
                 model: [
-                    { id: "overwrite", icon: "save_as", label: Translation.tr("Overwrite"), mine: true },
-                    { id: "export", icon: "ios_share", label: Translation.tr("Export ZIP"), mine: false },
-                    { id: "delete", icon: "delete", label: Translation.tr("Delete"), mine: false }
+                    { id: "overwrite", icon: "save_as", label: Translation.tr("Overwrite"), scope: ["mine"] },
+                    { id: "rename", icon: "edit", label: Translation.tr("Rename"), scope: ["mine"] },
+                    { id: "export", icon: "ios_share", label: Translation.tr("Export ZIP"), scope: ["mine"], own: true },
+                    { id: "upload", icon: "cloud_upload", label: Translation.tr("Upload"), scope: ["mine"], own: true },
+                    { id: "install", icon: "download_done", label: Translation.tr("Install"), scope: ["downloaded", "imported"] },
+                    { id: "delete", icon: "delete", label: Translation.tr("Delete"), scope: ["mine", "downloaded", "imported"] }
                 ]
 
                 delegate: RippleButton {
@@ -341,9 +423,9 @@ Item {
 
                     readonly property bool isDelete: modelData.id === "delete"
                     readonly property bool armed: isDelete && root.confirmDelete
-                    readonly property bool done: (modelData.id === "overwrite" && root.overwritten) || (modelData.id === "export" && root.exported)
+                    readonly property bool done: (modelData.id === "overwrite" && root.overwritten) || (modelData.id === "export" && root.exported) || (modelData.id === "install" && root.installed)
 
-                    visible: !root.online && (!modelData.mine || root.preset.source === "mine")
+                    visible: !root.online && modelData.scope.includes(root.preset.source) && (!modelData.own || !(root.info.origin ?? ""))
                     implicitHeight: 48
                     horizontalPadding: 18
                     buttonRadius: 24
@@ -362,6 +444,17 @@ Item {
                                 root.exported = true;
                                 exportedTimer.restart();
                             }
+                            else if (id === "rename") {
+                                titleInput.text = PresetsOnline.displayName(root.preset.name).replace(/_/g, " ");
+                                root.renaming = true;
+                                renameFocusTimer.restart();
+                            }
+                            else if (id === "upload") root.uploadRequested();
+                            else if (id === "install") {
+                                root.installRequested();
+                                root.installed = true;
+                                installedTimer.restart();
+                            }
                             else if (root.confirmDelete) root.deleteRequested();
                             else {
                                 root.confirmDelete = true;
@@ -378,7 +471,7 @@ Item {
                             color: secondary.armed ? Appearance.colors.colOnError : secondary.done ? Appearance.m3colors.m3onSuccess : Appearance.colors.colOnLayer1
                         }
                         StyledText {
-                            text: secondary.armed ? Translation.tr("Tap again to delete") : secondary.done ? (secondary.modelData.id === "export" ? Translation.tr("Exported") : Translation.tr("Overwritten")) : secondary.modelData.label
+                            text: secondary.armed ? Translation.tr("Tap again to delete") : secondary.done ? (secondary.modelData.id === "export" ? Translation.tr("Exported") : secondary.modelData.id === "install" ? Translation.tr("Installed") : Translation.tr("Overwritten")) : secondary.modelData.label
                             color: secondary.armed ? Appearance.colors.colOnError : secondary.done ? Appearance.m3colors.m3onSuccess : Appearance.colors.colOnLayer1
                         }
                     }

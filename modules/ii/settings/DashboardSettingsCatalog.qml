@@ -268,22 +268,10 @@ QtObject {
             ]
         },
         {
-            page: Translation.tr("Bar"), title: Translation.tr("Tooltips"), icon: "tooltip", cards: [
-                { type: "toggle", key: "bar:Tooltips/Enable", title: Translation.tr("Enable"), icon: "tooltip" },
-                { type: "toggle", key: "bar:Click to show", title: Translation.tr("Click to show"), icon: "ads_click" }
-            ]
-        },
-        {
             page: Translation.tr("Interface"), title: Translation.tr("Transparency"), icon: "opacity", cards: [
                 { type: "toggle", key: "interface:Automatic (from wallpaper)", title: Translation.tr("Auto transparency"), icon: "auto_awesome" },
                 { type: "slider", key: "interface:Transparency/Background", title: Translation.tr("Background"), icon: "opacity" },
                 { type: "slider", key: "interface:Transparency/Content", title: Translation.tr("Content"), icon: "opacity" }
-            ]
-        },
-        {
-            page: Translation.tr("Interface"), title: Translation.tr("Settings Panel"), icon: "settings", cards: [
-                { type: "spin", key: "interface:Border width", title: Translation.tr("Border width"), icon: "border_style" },
-                { type: "swatch", key: "interface:Border color", title: Translation.tr("Border color"), icon: "format_paint", w: 2 }
             ]
         },
         {
@@ -445,7 +433,7 @@ QtObject {
             ]
         },
         {
-            page: Translation.tr("Desktop"), title: Translation.tr("Digital clock"), icon: "timer_10", cards: [
+            page: Translation.tr("Desktop"), title: Translation.tr("Digital clock"), when: "clockdigital", icon: "timer_10", cards: [
                 { type: "toggle", key: "desktop:Vertical", title: Translation.tr("Vertical"), icon: "vertical_align_center" },
                 { type: "toggle", key: "desktop:Animate time change", title: Translation.tr("Animate change"), icon: "animation" },
                 { type: "toggle", key: "desktop:Show date", title: Translation.tr("Show date"), icon: "calendar_today" },
@@ -460,7 +448,7 @@ QtObject {
             ]
         },
         {
-            page: Translation.tr("Desktop"), title: Translation.tr("Cookie clock"), icon: "cookie", cards: [
+            page: Translation.tr("Desktop"), title: Translation.tr("Cookie clock"), when: "clockcookie", icon: "cookie", cards: [
                 { type: "toggle", key: "desktop:Auto styling with Gemini", title: Translation.tr("Auto styling (Gemini)"), icon: "auto_awesome" },
                 { type: "toggle", key: "desktop:Use old sine wave cookie implementation", title: Translation.tr("Old sine cookie"), icon: "waves" },
                 { type: "toggle", key: "desktop:Constantly rotate", title: Translation.tr("Constantly rotate"), icon: "autorenew" },
@@ -475,7 +463,7 @@ QtObject {
             ]
         },
         {
-            page: Translation.tr("Desktop"), title: Translation.tr("Pixel clock"), icon: "grid_view", cards: [
+            page: Translation.tr("Desktop"), title: Translation.tr("Pixel clock"), when: "clockpixel", icon: "grid_view", cards: [
                 { type: "select", key: "desktop:Pixel clock orientation", title: Translation.tr("Orientation"), icon: "screen_rotation" }
             ]
         },

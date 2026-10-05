@@ -40,6 +40,13 @@ Scope {
     }
 
     readonly property bool barVertical: Config.options.bar.vertical
+    readonly property string growFrom: {
+        if (barEdge === "bottom") return "bottom"
+        if (barEdge === "top") return "top"
+        if (mediaPosition === "left") return "top"
+        if (mediaPosition === "right") return "bottom"
+        return "center"
+    }
     readonly property string barEdge: {
         if (!barVertical) return Config.options.bar.bottom ? "bottom" : "top"
         return Config.options.bar.bottom ? "right" : "left"
@@ -147,7 +154,7 @@ Scope {
             }
 
             mask: Region {
-                item: playerColumnLayout
+                item: root.meaningfulPlayers.length === 1 && playerColumnLayout.firstCard ? playerColumnLayout.firstCard : playerColumnLayout
             }
 
             Component.onCompleted: {
@@ -168,20 +175,29 @@ Scope {
 
             ColumnLayout {
                 id: playerColumnLayout
+                property Item firstCard: null
                 anchors.fill: parent
                 spacing: -Appearance.sizes.elevationMargin // Shadow overlap okay
 
                 Repeater {
+                    id: playersRepeater
+                    onItemAdded: playerColumnLayout.firstCard = playersRepeater.itemAt(0)?.cardItem ?? null
+                    onItemRemoved: playerColumnLayout.firstCard = playersRepeater.itemAt(0)?.cardItem ?? null
                     model: ScriptModel {
                         values: root.meaningfulPlayers
                     }
                     delegate: Player {
+                        id: playerDelegate
                         required property MprisPlayer modelData
+                        readonly property real targetHeight: showLyrics ? 290 : Appearance.sizes.mediaControlsHeight
                         player: modelData
                         visualizerPoints: GlobalStates.visualizerPoints  
                         implicitWidth: root.widgetWidth
-                        implicitHeight: showLyrics ? 290 : Appearance.sizes.mediaControlsHeight
+                        implicitHeight: root.meaningfulPlayers.length === 1 ? 290 : targetHeight
+                        designHeight: targetHeight
                         radius: root.popupRounding
+                        animateResize: true
+                        growFrom: root.growFrom
                     }
                 }
 

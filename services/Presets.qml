@@ -16,6 +16,8 @@ Singleton {
     property alias onlineFolderModel: onlinePresetsFolderModel
     property alias importedFolderModel: importedPresetsFolderModel
 
+    signal renamed(string oldName, string newName)
+
     FolderListModel {
         id: presetsFolderModel
         folder: Qt.resolvedUrl(Directories.userPresetsPath)
@@ -80,6 +82,16 @@ Singleton {
     }
 
     Process {
+        id: renameProc
+        property string oldName: ""
+        stdout: StdioCollector { id: renameOut }
+        onExited: code => {
+            root.refresh()
+            root.renamed(renameProc.oldName, code === 0 ? renameOut.text.trim() : "")
+        }
+    }
+
+    Process {
         id: deleteOnlineProc
         onExited: root.refreshOnline()
     }
@@ -96,6 +108,60 @@ Singleton {
 
     Process {
         id: exportZipProc
+    }
+
+    Process {
+        id: installProc
+        stdout: StdioCollector { id: installOut }
+        onExited: code => {
+            root.refresh()
+            if (code !== 0) {
+                Quickshell.execDetached(["notify-send", "-a", "Presets", Translation.tr("Install failed"), Translation.tr("Could not copy the preset files")])
+                return
+            }
+            const lines = installOut.text.trim().split("\n")
+            const saved = lines[0].split("/").pop().replace(".json", "")
+            const missingLine = lines.find(l => l.startsWith("missing: "))
+            if (missingLine) {
+                const files = missingLine.slice(9)
+                Quickshell.execDetached(["notify-send", "-a", "Presets", Translation.tr("Preset installed with missing images"), Translation.tr("Saved as \"%1\", but these files were not found: %2").arg(saved).arg(files)])
+                return
+            }
+            Quickshell.execDetached(["notify-send", "-a", "Presets", Translation.tr("Preset installed"), Translation.tr("Saved as \"%1\" in My presets. Wallpapers are in Pictures/Wallpapers.").arg(saved)])
+        }
+    }
+
+    Process {
+        id: publishPickProc
+        property string presetName: ""
+        stdout: StdioCollector { id: publishPickOut }
+        onExited: code => {
+            const picked = publishPickOut.text.trim()
+            if (code !== 0 || picked === "") return
+            publishPrepProc.presetName = publishPickProc.presetName
+            publishPrepProc.command = ["bash", Directories.presetsScriptPath, "--export-zip", publishPickProc.presetName, "--folder", "--preview", picked]
+            publishPrepProc.running = true
+        }
+    }
+
+    Process {
+        id: publishPrepProc
+        property string presetName: ""
+        onExited: code => {
+            if (code === 3) {
+                Quickshell.execDetached(["notify-send", "-a", "Presets", Translation.tr("Can't upload this preset"), Translation.tr("It was installed from the gallery and belongs to its author")])
+                return
+            }
+            if (code !== 0) {
+                Quickshell.execDetached(["notify-send", "-a", "Presets", Translation.tr("Upload failed"), Translation.tr("Could not prepare the preset folder")])
+                return
+            }
+            const folder = `${Quickshell.env("HOME")}/.cache/quickshell/presets_share/${publishPrepProc.presetName}`
+            const repo = PresetsOnline.sources[0].repo
+            Quickshell.execDetached(["notify-send", "-a", "Presets", Translation.tr("Upload your preset"), Translation.tr("Drag the \"%1\" folder into the GitHub page and press Propose changes").arg(publishPrepProc.presetName)])
+            Quickshell.execDetached(["xdg-open", folder])
+            Quickshell.execDetached(["xdg-open", `https://github.com/${repo}/upload/main/presets`])
+        }
     }
 
     Process {
@@ -144,6 +210,12 @@ Singleton {
         deleteProc.running = true
     }
 
+    function rename(name, newName) {
+        renameProc.oldName = name
+        renameProc.command = ["bash", Directories.presetsScriptPath, "--rename", name, newName.trim()]
+        renameProc.running = true
+    }
+
     function removeOnline(name) {
         deleteOnlineProc.command = ["bash", Directories.presetsScriptPath, "--remove", name, "--online"]
         deleteOnlineProc.running = true
@@ -171,6 +243,23 @@ Singleton {
     function exportZip(name) {
         exportZipProc.command = ["bash", Directories.presetsScriptPath, "--export-zip", name]
         exportZipProc.running = true
+    }
+
+    function install(name, source) {
+        const cmd = ["bash", Directories.presetsScriptPath, "--install", name, source === "imported" ? "--imported" : "--online"]
+        if (source !== "imported") cmd.push("--origin", PresetsOnline.originOf(name), "--as", PresetsOnline.displayName(name))
+        installProc.command = cmd
+        installProc.running = true
+    }
+
+    function publish(name) {
+        const title = Translation.tr("Choose the preview image (a screenshot of your desktop)")
+        const start = `${Quickshell.env("HOME")}/Pictures`
+        publishPickProc.presetName = name
+        publishPickProc.command = ["bash", "-c",
+            'if command -v kdialog >/dev/null 2>&1; then kdialog --title "$1" --getopenfilename "$2" "Images (*.png *.jpg *.jpeg *.webp)"; else zenity --file-selection --title="$1" --filename="$2/" --file-filter="Images | *.png *.jpg *.jpeg *.webp"; fi',
+            "pick", title, start]
+        publishPickProc.running = true
     }
 
     function importZip(path) {
