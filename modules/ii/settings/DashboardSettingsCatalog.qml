@@ -413,6 +413,7 @@ QtObject {
         {
             page: Translation.tr("Desktop"), title: Translation.tr("Multiple wallpapers"), icon: "grid_view", cards: [
                 { type: "toggle", key: "desktop:Collage enable", title: Translation.tr("Enable"), icon: "grid_view" },
+                { type: "collagelayouts", key: "desktop:Collage layouts", title: Translation.tr("Layouts"), icon: "dashboard_customize", kw: "collage multiple wallpapers layout preset grid mosaic" },
                 { type: "spin", key: "desktop:Collage gap", title: Translation.tr("Spacing"), icon: "space_bar" },
                 { type: "spin", key: "desktop:Collage margin", title: Translation.tr("Outer margin"), icon: "padding" },
                 { type: "spin", key: "desktop:Collage radius", title: Translation.tr("Corner radius"), icon: "rounded_corner" }
@@ -476,7 +477,7 @@ QtObject {
         },
         {
             page: Translation.tr("Desktop"), title: Translation.tr("Custom image"), icon: "imagesmode", cards: [
-                { type: "toggle", key: "desktop:Custom Image/Enable", title: Translation.tr("Enable"), icon: "imagesmode" },
+                { type: "toggle", key: "desktop:Custom Image/Enable", keepOrder: true, title: Translation.tr("Enable"), icon: "imagesmode" },
                 { type: "shape", key: "desktop:Image shape", title: Translation.tr("Shape"), icon: "shapes" }
             ]
         },
@@ -522,9 +523,10 @@ QtObject {
         },
         {
             page: Translation.tr("General"), title: Translation.tr("Time"), icon: "nest_clock_farsight_analog", cards: [
-                { type: "select", key: "general:Format", title: Translation.tr("Time format"), icon: "schedule", kw: "clock 24h 12h" },
+                { type: "timepreview", key: "general:Time preview", title: Translation.tr("Preview"), icon: "schedule", kw: "clock time preview" },
                 { type: "toggle", key: "general:Second precision", title: Translation.tr("Second precision"), icon: "pace" },
-                { type: "toggle", key: "general:Show date", title: Translation.tr("Show date"), icon: "date_range" }
+                { type: "toggle", key: "general:Show date", title: Translation.tr("Show date"), icon: "date_range" },
+                { type: "select", w: 4, key: "general:Format", title: Translation.tr("Time format"), icon: "schedule", kw: "clock 24h 12h" }
             ]
         },
         {
