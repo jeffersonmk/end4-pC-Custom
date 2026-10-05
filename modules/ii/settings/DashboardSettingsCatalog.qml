@@ -278,7 +278,6 @@ QtObject {
             page: Translation.tr("Interface"), title: Translation.tr("Left Sidebar"), icon: "splitscreen_left", cards: [
                 { type: "toggle", key: "interface:Left Sidebar/Enable", title: Translation.tr("Media player"), icon: "music_note" },
                 { type: "toggle", key: "interface:Follow Album Colors", title: Translation.tr("Album colors"), icon: "palette" },
-                { type: "toggle", key: "interface:Enable Translator", title: Translation.tr("Translator"), icon: "translate" },
                 { type: "select", key: "interface:AI policy", title: Translation.tr("AI"), icon: "smart_toy" },
                 { type: "select", key: "interface:Weeb policy", title: Translation.tr("Weeb"), icon: "playing_cards" }
             ]
@@ -450,7 +449,7 @@ QtObject {
         },
         {
             page: Translation.tr("Desktop"), title: Translation.tr("Cookie clock"), when: "clockcookie", icon: "cookie", cards: [
-                { type: "toggle", key: "desktop:Auto styling with Gemini", title: Translation.tr("Auto styling (Gemini)"), icon: "auto_awesome" },
+                { type: "select", key: "desktop:Clock preset", title: Translation.tr("Clock preset"), icon: "design_services" },
                 { type: "toggle", key: "desktop:Use old sine wave cookie implementation", title: Translation.tr("Old sine cookie"), icon: "waves" },
                 { type: "toggle", key: "desktop:Constantly rotate", title: Translation.tr("Constantly rotate"), icon: "autorenew" },
                 { type: "toggle", key: "desktop:Hour marks", title: Translation.tr("Hour marks"), icon: "more_horiz" },

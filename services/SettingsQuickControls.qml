@@ -124,6 +124,7 @@ Singleton {
         "desktop:Font size": root.optionSlider("background.widgets.clock.digital.font.size", 50, 700, [90], false),
         "desktop:Font width": root.optionSlider("background.widgets.clock.digital.font.width", 25, 125, [100], false),
         "desktop:Font roundness": root.optionSlider("background.widgets.clock.digital.font.roundness", 0, 100, [], false),
+        "desktop:Clock preset": root.optionSelect("background.widgets.clock.cookie.preset", [{ displayName: Translation.tr("None"), icon: "block", value: "none" }, { displayName: Translation.tr("Abstract"), icon: "interests", value: "abstract" }, { displayName: Translation.tr("Anime"), icon: "animation", value: "anime" }, { displayName: Translation.tr("City / Space"), icon: "location_city", value: "city" }, { displayName: Translation.tr("Minimalist"), icon: "check_box_outline_blank", value: "minimalist" }, { displayName: Translation.tr("Landscape"), icon: "landscape", value: "landscape" }, { displayName: Translation.tr("Plants"), icon: "potted_plant", value: "plants" }, { displayName: Translation.tr("Person"), icon: "person", value: "person" }]),
         "desktop:Use old sine wave cookie implementation": root.optionSwitch("background.widgets.clock.cookie.useSineCookie"),
         "desktop:Sides": root.optionSpin("background.widgets.clock.cookie.sides", 0, 40, 1),
         "desktop:Constantly rotate": root.optionSwitch("background.widgets.clock.cookie.constantlyRotate"),

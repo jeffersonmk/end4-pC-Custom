@@ -21,7 +21,7 @@ Singleton {
     ]
 
     // Each entry remembers the `visible:` conditions of the blocks around it, so options
-    // that are hidden on the page (e.g. "Auto styling with Gemini" when the clock isn't
+    // that are hidden on the page (e.g. "Clock preset" when the clock isn't
     // Cookie) are also left out of the search results.
     function parsePage(source) {
         const typeOpen = /^\s*([A-Z][\w.]*)\s*\{/;

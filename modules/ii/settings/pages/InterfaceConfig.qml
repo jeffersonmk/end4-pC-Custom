@@ -1284,6 +1284,49 @@ ContentPage {
                 }
             }
 
+            ContentSubsection {
+                title: Translation.tr("Rectangular selection")
+                GroupedList {
+                    ConfigSwitch {
+                        buttonIcon: "point_scan"
+                        text: Translation.tr("Show aim lines")
+                        checked: Config.options.regionSelector.rect.showAimLines
+                        onCheckedChanged: {
+                            Config.options.regionSelector.rect.showAimLines = checked;
+                        }
+                    }
+                }
+            }
+
+            ContentSubsection {
+                title: Translation.tr("Circle selection")
+
+                GroupedList {
+                    ConfigSpinBox {
+                        icon: "eraser_size_3"
+                        text: Translation.tr("Stroke width")
+                        value: Config.options.regionSelector.circle.strokeWidth
+                        from: 1
+                        to: 20
+                        stepSize: 1
+                        onValueChanged: {
+                            Config.options.regionSelector.circle.strokeWidth = value;
+                        }
+                    }
+
+                    ConfigSpinBox {
+                        icon: "screenshot_frame_2"
+                        text: Translation.tr("Padding")
+                        value: Config.options.regionSelector.circle.padding
+                        from: 0
+                        to: 100
+                        stepSize: 5
+                        onValueChanged: {
+                            Config.options.regionSelector.circle.padding = value;
+                        }
+                    }
+                }
+            }
         }
 
         ContentSection {

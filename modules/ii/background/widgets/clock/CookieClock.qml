@@ -51,7 +51,6 @@ Item {
 
     function setClockPreset(category) {
         if (category === "" || category === "none") return;
-        print("[Cookie clock] Setting clock preset: " + category)
         // "abstract", "anime", "city", "minimalist", "landscape", "plants", "person", "space"
         if (category == "abstract") {
             applyStyle(9, "none", "fill", "medium", "dot", "bubble")
@@ -80,8 +79,6 @@ Item {
     Component.onCompleted: {
         root.setClockPreset(Config.options.background.widgets.clock.cookie.preset)
     }
-
-
 
     property bool useSineCookie: Config.options.background.widgets.clock.cookie.useSineCookie
     Item {
