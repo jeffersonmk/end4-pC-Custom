@@ -701,7 +701,6 @@ Item {
             onOverwriteRequested: Presets.overwrite(root.selected.name)
             onExportRequested: Presets.exportZip(root.selected.name)
             onRenameRequested: newName => Presets.rename(root.selected.name, newName)
-            onUploadRequested: Presets.publish(root.selected.name)
             onInstallRequested: Presets.install(root.selected.name, root.selected.source)
             onDeleteRequested: {
                 root.removePreset(root.selected);

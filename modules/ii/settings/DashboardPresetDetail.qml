@@ -33,7 +33,6 @@ Item {
     signal applyRequested()
     signal overwriteRequested()
     signal exportRequested()
-    signal uploadRequested()
     signal installRequested()
     signal deleteRequested()
     signal renameRequested(string newName)
@@ -412,7 +411,6 @@ Item {
                     { id: "overwrite", icon: "save_as", label: Translation.tr("Overwrite"), scope: ["mine"] },
                     { id: "rename", icon: "edit", label: Translation.tr("Rename"), scope: ["mine"] },
                     { id: "export", icon: "ios_share", label: Translation.tr("Export ZIP"), scope: ["mine"], own: true },
-                    { id: "upload", icon: "cloud_upload", label: Translation.tr("Upload"), scope: ["mine"], own: true },
                     { id: "install", icon: "download_done", label: Translation.tr("Install"), scope: ["downloaded", "imported"] },
                     { id: "delete", icon: "delete", label: Translation.tr("Delete"), scope: ["mine", "downloaded", "imported"] }
                 ]
@@ -449,7 +447,6 @@ Item {
                                 root.renaming = true;
                                 renameFocusTimer.restart();
                             }
-                            else if (id === "upload") root.uploadRequested();
                             else if (id === "install") {
                                 root.installRequested();
                                 root.installed = true;

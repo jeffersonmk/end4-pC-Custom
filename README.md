@@ -24,9 +24,10 @@ Customized and maintained by **[@jeffersonmk](https://github.com/jeffersonmk)**
 | 🎮 **Gamepad support** | *Settings › Services › Gamepad*: press a controller button (default: the Xbox / PS / Nintendo *home* button) to open the widget overlay, the same as `Super + G`, or any other panel you pick. While the overlay is open you can **drive it with the controller**: d-pad / left stick moves a focus ring between every button, tab (e.g. Output/Input, CPU/RAM/Swap) and slider, the bottom button (A / ✕ / B) selects, left/right changes a focused slider (e.g. an app's volume), the right button (B / ○ / A) or Start closes it and the bumpers change the system volume. While it's open the controller works **only in the overlay** (buttons, sticks, touchpad and motion sensors are taken from the game/app behind it until you close it), and the focused game can be **paused** until you close it: separate switches for Xbox/standard controllers and for PlayStation/Nintendo ones (on by default, since emulators and Steam read those directly). A hint bar shows your controller's **brand logo** (Xbox, PlayStation or Nintendo) and its button labels. Works with USB and Bluetooth controllers plugged in at any time; outside the overlay games receive every button as usual. Off by default; needs `python-evdev` (`sudo pacman -S python-evdev`). |
 | 🔍 **Search inside Settings** | A **Search** button in the Settings sidebar (or `Ctrl + F`) finds any page, section or option by keyword and jumps straight to it. |
 | 📐 **Roomier Settings panel** | Bigger, better-proportioned window; nothing is cut off at the bottom of the sidebar. |
-| 🧹 **Features removed** | The left-sidebar *Translator* tab, the *Screen Translator* (`Super + Shift + T`), **Google Lens** (image search button) and **music recognition** (SongRec button) were removed. `Super + Shift + T` can open the System tab instead (see below). |
+| 🧹 **Features removed** | The left-sidebar *Translator* tab, the *Screen Translator* (`Super + Shift + T`), **Google Lens** (image search button), **music recognition** (SongRec button), the Gemini clock auto-styling and the Gemini *translation generator* (welcome screen and *Settings › General › Language*) were removed. `Super + Shift + T` can open the System tab instead (see below). |
 | 🖥️ **Local-only AI chat** | The *Intelligence* sidebar only talks to models running on your machine (Ollama, vLLM, or any OpenAI-compatible server on `localhost`). Online models, API keys and the `/key` command were removed. |
 | 🎨 **Clock presets** | *Settings › Desktop › Cookie clock settings › Clock preset*: choose a visual style for the cookie clock — None (manual), Abstract, Anime, City/Space, Minimalist, Landscape, Plants, Person. No AI or API key needed. |
+| 🍅 **Digital Pomodoro** | The Pomodoro in the right sidebar (*Timer* tab) has a **digital clock** view next to the dial: phase, cycle, big countdown and progress bar, with **−/+** buttons to change the **focus** and **break** length right there (locked while it's running). Switch with the button at the top right, or in *Settings › General › Time › Pomodoro*, which also has the long break length and cycles. |
 | 📁 **Install-folder independent** | Lock screen (Niri) and *About › Update Dots* work whatever the folder is called, so this fork can live next to `end4-pC` and `ii`. |
 
 Everything else (bar, widgets, wallpapers, lyrics, Hyprland settings…) comes from end4-pC and is kept in sync with it.
@@ -50,17 +51,9 @@ Everything else (bar, widgets, wallpapers, lyrics, Hyprland settings…) comes f
 
 ---
 
-## 🎨 Community Presets
+## 🎨 Presets
 
-Share your whole desktop with one button, or try someone else's in a click.
-
-**[end4-pCpresets](https://github.com/pctrade/end4-pCpresets)** is the community gallery for this shell. Open **Dashboard → Presets**, pick a preset and press **Download** to try it or **Install** to keep it. Made your own? Press **Upload**, choose a screenshot and send it with a pull request. No git needed.
-
-- 🔒 **Private by design:** nothing is collected from you. The shell only reads public files from GitHub.
-- 🧹 **Clean exports:** personal paths, keys and commands are removed before anything is shared.
-- ✅ **Every preset is checked** automatically and merged by hand.
-
-[Browse the gallery](https://github.com/pctrade/end4-pCpresets) · [How to share yours](https://github.com/pctrade/end4-pCpresets#share-your-preset)
+Save your whole desktop look as a preset in **Dashboard → Presets**, export it as a ZIP or import one. You can also browse the **[end4-pCpresets](https://github.com/pctrade/end4-pCpresets)** community gallery and press **Download** to try a preset or **Install** to keep it. Uploading presets to the gallery was removed from this fork.
 
 ---
 
@@ -134,6 +127,10 @@ Open Settings and click **Search** in the sidebar (or press `Ctrl + F`), type a 
 ### How do I use the AI chat?
 
 Install [Ollama](https://ollama.com), pull a model (e.g. `ollama pull llama3.2`), open the left sidebar and type `/refresh`. Choose a model with `/model`. Other local OpenAI-compatible servers can be added in `ai.extraModels` in `~/.config/illogical-impulse/config.json` (endpoints that aren't on `localhost` are ignored).
+
+### Why is my SATA SSD/HDD temperature missing in the System tab?
+
+NVMe drives report their temperature out of the box. SATA drives need the `drivetemp` kernel module: run `sudo modprobe drivetemp`, and to load it on every boot, `echo drivetemp | sudo tee /etc/modules-load.d/drivetemp.conf`.
 
 ---
 
