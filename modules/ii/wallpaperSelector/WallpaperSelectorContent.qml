@@ -144,9 +144,6 @@ MouseArea {
                 root.activeFilterField?.forceActiveFocus();
             }
             event.accepted = true;
-        } else if (event.modifiers & Qt.ControlModifier && event.key === Qt.Key_L) {
-            addressBar.focusBreadcrumb();
-            event.accepted = true;
         } else if (event.key === Qt.Key_Slash) {
             root.activeFilterField?.forceActiveFocus();
             event.accepted = true;

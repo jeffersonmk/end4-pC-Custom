@@ -570,6 +570,7 @@ Singleton {
                 property JsonObject tooltips: JsonObject {
                     property bool enable: true
                     property bool clickToShow: false
+                    property string style: "default"
                 }
                 property JsonObject media: JsonObject {
                     property string preferredPlayer: ""

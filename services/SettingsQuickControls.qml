@@ -286,6 +286,10 @@ Singleton {
         "bar:Show only title": root.optionSwitch("bar.media.onlyTitle"),
         "bar:Tooltips/Enable": root.optionSwitch("bar.tooltips.enable"),
         "bar:Click to show": root.optionSwitch("bar.tooltips.clickToShow"),
+        "bar:Tooltips/Style": root.optionSelect("bar.tooltips.style", [
+            { displayName: Translation.tr("Default"), icon: "tooltip", value: "default" },
+            { displayName: Translation.tr("Morph"), icon: "join_inner", value: "morph" }
+        ]),
         "bar:Show Frame": root.toggle(
             () => Config.options.bar.showFrame,
             value => {

@@ -12,9 +12,33 @@ DashboardCard {
     property var tileShape: MaterialShape.Shape.Clover4Leaf
 
     readonly property string currentSignature: Collage.signature(Collage.tree)
-    readonly property int columns: 10
-    readonly property real thumbWidth: (width - 28 - (columns - 1) * 8) / columns
-    readonly property real thumbHeight: thumbWidth * 0.62
+    readonly property int gap: 8
+    readonly property int count: Collage.presets.length
+    readonly property real areaWidth: gridArea.width
+    readonly property real areaHeight: gridArea.height
+    readonly property int columns: bestColumns(areaWidth, areaHeight)
+    readonly property int rows: Math.ceil(count / columns)
+    readonly property real thumbWidth: (areaWidth - (columns - 1) * gap) / columns
+    readonly property real thumbHeight: (areaHeight - (rows - 1) * gap) / rows
+
+    function bestColumns(w, h) {
+        if (w <= 0 || h <= 0 || count <= 0) return 10;
+        let best = 1;
+        let bestScore = Infinity;
+        for (let c = 1; c <= count; c++) {
+            const r = Math.ceil(count / c);
+            const tw = (w - (c - 1) * gap) / c;
+            const th = (h - (r - 1) * gap) / r;
+            if (tw < 30 || th < 20) continue;
+            const empty = (r * c - count) / (r * c);
+            const score = Math.abs(Math.log(tw / th / 1.6)) + empty * 3;
+            if (score < bestScore) {
+                bestScore = score;
+                best = c;
+            }
+        }
+        return best;
+    }
 
     tint: Appearance.colors.colTertiaryContainer
 
@@ -77,11 +101,14 @@ DashboardCard {
             }
         }
 
-        Item { Layout.fillHeight: true }
-
-        Flow {
+        Item {
+            id: gridArea
             Layout.fillWidth: true
-            spacing: 8
+            Layout.fillHeight: true
+
+        Grid {
+            columns: root.columns
+            spacing: root.gap
 
             Repeater {
                 model: Collage.presets
@@ -131,6 +158,7 @@ DashboardCard {
                     }
                 }
             }
+        }
         }
     }
 }
