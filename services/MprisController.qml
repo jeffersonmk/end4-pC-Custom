@@ -32,6 +32,29 @@ Singleton {
 	}
 
 	property MprisPlayer activePlayer: preferredPlayer ?? trackedPlayer ?? Mpris.players.values[0] ?? null;
+
+	// Human-readable app name ("com.github.th-ch.youtube-music" -> "Pear Desktop")
+	readonly property var knownPlayerNames: ({
+		"youtube-music": "Pear Desktop", "youtubemusic": "Pear Desktop", "pear-desktop": "Pear Desktop",
+		"feishin": "Feishin", "spotify": "Spotify", "zen": "Zen", "firefox": "Firefox",
+		"chromium": "Chromium", "brave": "Brave", "vivaldi": "Vivaldi", "google-chrome": "Chrome",
+		"mpv": "mpv", "vlc": "VLC", "elisa": "Elisa", "strawberry": "Strawberry", "cider": "Cider",
+		"tidal-hifi": "TIDAL", "supersonic": "Supersonic", "sublime-music": "Sublime Music"
+	});
+	function friendlyName(player) {
+		if (!player) return "";
+		const candidates = [player.desktopEntry ?? "", player.identity ?? "", player.dbusName ?? ""]
+			.map(s => s.toLowerCase());
+		for (const c of candidates) {
+			for (const key in root.knownPlayerNames) {
+				if (c.includes(key)) return root.knownPlayerNames[key];
+			}
+		}
+		const id = player.identity ?? "";
+		if (id && !/^[\w-]+(\.[\w-]+)+$/.test(id)) return id;   // already a readable name
+		const raw = (id || player.desktopEntry || player.dbusName || "Player").split(".").pop();
+		return raw.replace(/[-_]+/g, " ").replace(/\b\w/g, ch => ch.toUpperCase());
+	}
 	signal trackChanged(reverse: bool);
 
 	property bool __reverse: false;

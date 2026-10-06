@@ -60,7 +60,7 @@ Scope {
     // Player.qml uses) - if nothing is playing this just stays blank and the
     // card falls back to a plain tinted background.
     readonly property MprisPlayer activePlayer: MprisController.activePlayer
-    readonly property var artUrl: activePlayer?.trackArtUrl ?? ""
+    readonly property var artUrl: CoverArt.url(activePlayer)
     readonly property string artFilePath: `${Directories.coverArt}/${Qt.md5(root.artUrl)}`
 
     // Only updated once the *new* track's art has actually finished

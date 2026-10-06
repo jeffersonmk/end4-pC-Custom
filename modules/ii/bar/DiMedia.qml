@@ -53,7 +53,7 @@ Item {
             StyledImage {
                 anchors.fill: parent
                 fillMode: Image.PreserveAspectCrop
-                source: root.activePlayer?.trackArtUrl ?? ""
+                source: CoverArt.url(root.activePlayer)
                 sourceSize.width: artMask.width * 2
                 sourceSize.height: artMask.height * 2
                 visible: (root.activePlayer?.trackArtUrl ?? "") !== ""

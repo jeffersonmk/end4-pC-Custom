@@ -60,7 +60,7 @@ AbstractBackgroundWidget {
 
     // Cover art of the current track, cached like the media widget does
     readonly property MprisPlayer activePlayer: MprisController.activePlayer
-    readonly property string artUrl: activePlayer?.trackArtUrl ?? ""
+    readonly property string artUrl: CoverArt.url(activePlayer)
     readonly property bool needsCover: isRing || useCoverColors
     readonly property string artFilePath: `${Directories.coverArt}/${Qt.md5(artUrl)}`
     property bool coverDownloaded: false

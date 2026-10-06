@@ -748,6 +748,8 @@ Singleton {
             property JsonObject media: JsonObject {
                 // Attempt to remove dupes (the aggregator playerctl one and browsers' native ones when there's plasma browser integration)
                 property bool filterDuplicatePlayers: true
+                // Replace tiny player thumbnails (YouTube Music / Pear Desktop, browsers) with HD album art
+                property bool hdCovers: true
             }
 
             property JsonObject networking: JsonObject {

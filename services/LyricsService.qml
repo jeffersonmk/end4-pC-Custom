@@ -11,7 +11,11 @@ import qs.modules.common.functions
 Singleton {
     id: root
 
-    readonly property MprisPlayer activePlayer: MprisController.activePlayer
+    // The left-sidebar player can show a different player than the "active" one
+    // (e.g. a paused music app while a browser video plays). It pins its player here
+    // so the lyrics always match what is on screen.
+    property MprisPlayer pinnedPlayer: null
+    readonly property MprisPlayer activePlayer: root.pinnedPlayer ?? MprisController.activePlayer
 
     property var lyricsLines: []
     property int activeIndex: -1
@@ -35,7 +39,9 @@ Singleton {
     }
 
     readonly property bool playing: root.activePlayer?.isPlaying ?? false
-    readonly property bool synced: root.status === "ok" && root.lyricsLines.length > 0
+    // status: "loading" | "ok" (synced) | "plain" (unsynced, estimated times) | "not_found" | "no_info"
+    readonly property bool synced: (root.status === "ok" || root.status === "plain") && root.lyricsLines.length > 0
+    readonly property bool unsynced: root.status === "plain"
     readonly property real leadSeconds: 0.15
 
     property real basePosition: 0
@@ -117,7 +123,8 @@ Singleton {
 
                 const parts = trimmed.split("§")
                 if (parts.length < 3) return
-                if (parts[parts.length - 1].trim() !== "ok") return
+                const kind = parts[parts.length - 1].trim()
+                if (kind !== "ok" && kind !== "plain") return
 
                 let lines = []
                 for (let i = 0; i < parts.length - 1; i += 2) {
@@ -131,13 +138,36 @@ Singleton {
                 root.lyricsLines = lines
                 root.activeIndex = -1
                 root.slots = root.buildSlots(-1)
-                root.status = "ok"
+                root.status = kind
                 root.resync()
             }
         }
     }
 
+    // Players often publish title, artist, album and length in separate updates
+    // (Feishin sends the length a moment after the title). Wait for things to settle
+    // so the lookup uses the right track length.
+    Timer {
+        id: restartDebounce
+        interval: 350
+        onTriggered: root.restartLyrics()
+    }
+
+    property string lastQuery: ""
+
+    function scheduleRestart() {
+        restartDebounce.restart()
+    }
+
+    // Manual retry from the UI: skip the cache
+    function retry() {
+        root.forceRefresh = true
+        root.restartLyrics()
+    }
+    property bool forceRefresh: false
+
     function restartLyrics() {
+        restartDebounce.stop()
         lyricsProc.running = false
         boundaryTimer.stop()
         root.lyricsLines = []
@@ -147,21 +177,36 @@ Singleton {
 
         const title    = root.activePlayer?.trackTitle  ?? ""
         const artist   = root.activePlayer?.trackArtist ?? ""
+        const album    = root.activePlayer?.trackAlbum  ?? ""
         const duration = root.activePlayer?.length       ?? 0
 
-        if (!title || !artist) { root.status = "no_info"; return }
+        if (!title || !artist) { root.status = "no_info"; root.lastQuery = ""; return }
 
+        root.lastQuery = [title, artist, album, Math.round(duration)].join("\u001f")
         lyricsProc.command = [
             "python3",
             `${Directories.scriptPath}/lyrics/lyrics.py`,
-            title, artist, String(Math.floor(duration))
-        ]
+            title, artist, String(Math.round(duration)), album
+        ].concat(root.forceRefresh ? ["--refresh"] : [])
+        root.forceRefresh = false
         lyricsProc.running = true
     }
 
+    function queryChanged() {
+        const p = root.activePlayer
+        const q = [p?.trackTitle ?? "", p?.trackArtist ?? "", p?.trackAlbum ?? "", Math.round(p?.length ?? 0)].join("\u001f")
+        return q !== root.lastQuery
+    }
+
+    onActivePlayerChanged: root.scheduleRestart()
+
     Connections {
         target: root.activePlayer
-        function onTrackTitleChanged() { root.restartLyrics() }
+        function onTrackTitleChanged()  { root.scheduleRestart() }
+        function onTrackArtistChanged() { if (root.queryChanged()) root.scheduleRestart() }
+        function onTrackAlbumChanged()  { if (root.queryChanged()) root.scheduleRestart() }
+        // A late length update (or a wrong one at track start) would pick the wrong version
+        function onLengthChanged()      { if (root.queryChanged() && root.status !== "ok") root.scheduleRestart() }
         function onPlaybackStateChanged() { root.resync() }
     }
 

@@ -15,7 +15,7 @@ import Quickshell.Services.Mpris
 Item {
     id: root
     required property MprisPlayer player
-    property var artUrl: player?.trackArtUrl ?? ""
+    property var artUrl: CoverArt.url(player)
     property string artDownloadLocation: Directories.coverArt
     property string artFileName: Qt.md5(artUrl)
     property string artFilePath: `${artDownloadLocation}/${artFileName}`
@@ -113,7 +113,7 @@ Item {
         id: coverArtDownloader
         property string targetFile: root.artUrl
         property string artFilePath: root.artFilePath
-        command: ["bash", "-c", `[ -f ${artFilePath} ] || curl -4 -sSL '${targetFile}' -o '${artFilePath}'`]
+        command: ["bash", "-c", `[ -f '${artFilePath}' ] || { curl -4 -sSL '${targetFile}' -o '${artFilePath}.part' && mv -f '${artFilePath}.part' '${artFilePath}'; }`]
         onExited: (exitCode, exitStatus) => {
             root.downloaded = true
         }

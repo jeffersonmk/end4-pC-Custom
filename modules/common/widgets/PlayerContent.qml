@@ -47,7 +47,7 @@ Item {
     }
 
     function restartLyrics() {
-        if (lyricsLoader.item) lyricsLoader.item.restartLyrics()
+        LyricsService.resync()
     }
 
     component TrackChangeButton: RippleButton {

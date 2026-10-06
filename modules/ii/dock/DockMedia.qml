@@ -21,7 +21,7 @@ Item {
 
     property var player: MprisController.activePlayer
 
-    property var    artUrl:      player?.trackArtUrl ?? ""
+    property var    artUrl:      CoverArt.url(player)
     property string trackTitle:  player?.trackTitle  ?? ""
     property string trackArtist: player?.trackArtist ?? ""
     property bool   isPlaying:   player?.isPlaying   ?? false
@@ -70,7 +70,7 @@ Item {
         property string targetFile:  root.artUrl
         property string artFilePath: root.artFilePath
         command: ["bash", "-c",
-            `[ -f ${artFilePath} ] || curl -sSL '${targetFile}' -o '${artFilePath}'`]
+            `[ -f '${artFilePath}' ] || { curl -sSL '${targetFile}' -o '${artFilePath}.part' && mv -f '${artFilePath}.part' '${artFilePath}'; }`]
         onExited: { root.artDownloaded = true }
     }
 

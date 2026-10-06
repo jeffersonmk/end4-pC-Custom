@@ -31,7 +31,7 @@ MouseArea {
         return MprisController.activePlayer
     }
 
-    property var    artUrl:      activePlayer?.trackArtUrl ?? ""
+    property var    artUrl:      CoverArt.url(activePlayer)
 
     // Force focus on entry
     function forceFieldFocus() {

@@ -68,6 +68,8 @@ Singleton {
             }
 
             property JsonObject sidebar: JsonObject {
+                property string leftTab: "" // icon of the last open left-sidebar tab
+                property string leftPlayer: "" // dbus name of the player picked by hand in the left sidebar ("" = automatic)
                 property JsonObject bottomGroup: JsonObject {
                     property bool collapsed: false
                     property int tab: 0

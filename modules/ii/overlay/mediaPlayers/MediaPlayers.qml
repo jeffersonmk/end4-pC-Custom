@@ -172,7 +172,7 @@ StyledOverlayWidget {
                         cache: false
                         sourceSize.width: 128
                         sourceSize.height: 128
-                        source: root.selected?.trackArtUrl ?? ""
+                        source: CoverArt.url(root.selected)
                     }
                 }
 

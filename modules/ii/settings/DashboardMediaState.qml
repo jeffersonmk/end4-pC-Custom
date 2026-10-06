@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Mpris
 import qs.modules.common
+import qs.services
 import qs.modules.common.models
 import qs.modules.common.functions
 
@@ -12,7 +13,7 @@ Item {
 
     property var player: Mpris.players.values[0] ?? null
     readonly property bool playing: player?.playbackState === MprisPlaybackState.Playing
-    readonly property string artUrl: player?.trackArtUrl ?? ""
+    readonly property string artUrl: CoverArt.url(player)
     readonly property string artFilePath: `${Directories.coverArt}/${Qt.md5(artUrl)}`
     property bool downloaded: false
     readonly property string displayedArtFilePath: downloaded ? Qt.resolvedUrl(artFilePath) : ""

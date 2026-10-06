@@ -22,6 +22,19 @@ Item {
         ...((root.animeEnabled && !root.animeCloset) ? [{"icon": "bookmark_heart", "name": Translation.tr("Anime")}] : [])
     ]
     property int tabCount: swipeView.count
+    property bool restored: false
+
+    function restoreTab() {
+        const saved = Persistent.states.sidebar.leftTab;
+        const idx = root.tabButtonList.findIndex(t => t.icon === saved);
+        if (idx >= 0 && idx < swipeView.count) {
+            swipeView.setCurrentIndex(idx);
+            verticalTabBar.currentIndex = idx;
+        }
+        root.restored = true;
+    }
+
+    Component.onCompleted: Qt.callLater(root.restoreTab)
 
     function focusActiveItem() {
         swipeView.currentItem.forceActiveFocus()
@@ -71,7 +84,13 @@ Item {
                 id: swipeView
                 anchors.fill: parent
                 spacing: 10
-                currentIndex: tabBar.currentIndex
+                // Remember the open tab: the sidebar content is unloaded a few seconds
+                // after closing, so without this it always reopened on the first tab.
+                onCurrentIndexChanged: {
+                    if (!root.restored) return;
+                    const tab = root.tabButtonList[currentIndex];
+                    if (tab) Persistent.states.sidebar.leftTab = tab.icon;
+                }
 
                 clip: true
                 layer.enabled: true

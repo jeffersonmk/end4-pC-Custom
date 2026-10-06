@@ -26,7 +26,7 @@ Item {
 
     readonly property string cleanedTitle: StringUtils.cleanMusicTitle(activePlayer?.trackTitle) || Translation.tr("No media")
 
-    property var    artUrl:      activePlayer?.trackArtUrl ?? ""
+    property var    artUrl:      CoverArt.url(activePlayer)
     property string trackTitle:  activePlayer?.trackTitle  ?? ""
     property string trackArtist: activePlayer?.trackArtist ?? ""
     property bool   isPlaying:   activePlayer?.isPlaying   ?? false
@@ -63,7 +63,7 @@ Item {
         property string targetFile:  root.artUrl
         property string artFilePath: root.artFilePath
         command: ["bash", "-c",
-            `[ -f ${artFilePath} ] || curl -sSL '${targetFile}' -o '${artFilePath}'`]
+            `[ -f '${artFilePath}' ] || { curl -sSL '${targetFile}' -o '${artFilePath}.part' && mv -f '${artFilePath}.part' '${artFilePath}'; }`]
         onExited: { root.artDownloaded = true }
     }
 
