@@ -53,7 +53,7 @@ Item {
     readonly property int columns: Math.max(2, Math.round(width / 340))
 
     readonly property var barPositions: [Translation.tr("Top"), Translation.tr("Bottom"), Translation.tr("Left"), Translation.tr("Right")]
-    readonly property var barStyles: ["Hug", "Float", "Islands", "M3", "M3 Hug", "Panel"]
+    readonly property var barStyles: ["Hug", "Float", "Islands", "M3", "M3 Hug", "Panel", "Split Hug"]
 
     function summaryOf(data) {
         const bar = data?.bar ?? {};
@@ -339,7 +339,7 @@ Item {
             clip: true
             boundsBehavior: Flickable.StopAtBounds
             cellWidth: Math.floor(width / root.columns)
-            cellHeight: Math.round(cellWidth * 0.68)
+            cellHeight: Math.max(120, Math.floor(height / 2))
             cacheBuffer: 0
             model: root.source === "online" ? [] : root.localEntries
 
@@ -503,7 +503,7 @@ Item {
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
                 cellWidth: Math.floor(width / root.columns)
-                cellHeight: Math.round(cellWidth * 0.68)
+                cellHeight: Math.max(120, Math.floor(height / 2))
                 cacheBuffer: 0
                 model: root.source === "online" ? root.onlineEntries : []
 

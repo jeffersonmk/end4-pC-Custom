@@ -96,6 +96,7 @@ Singleton {
             }
 
             property JsonObject appearance: JsonObject {
+                property string uiBackground: "themed"
                 property bool extraBackgroundTint: true
                 property int fakeScreenRounding: 2 // 0: None | 1: Always | 2: When not fullscreen
                 property JsonObject fonts: JsonObject {
@@ -390,6 +391,16 @@ Singleton {
                         property real size: 200
                     }
 
+                    property JsonObject imageCard: JsonObject {
+                        property bool enable: false
+                        property string placementStrategy: "free"
+                        property real x: 400
+                        property real y: 100
+                        property real z: 0
+                        property string path: ""
+                        property string sizeMode: "1x2"
+                    }
+
                     property JsonObject sticker: JsonObject {
                         property bool enable: false
                         property list<var> items: [] // if someone sees this and wants to add more stickers, make a PR too lazy 
@@ -487,7 +498,7 @@ Singleton {
                 property bool followFrameColor: false
                 property bool centerOnlyReserveFrame: false
                 property bool bottom: false // Instead of top
-                property int cornerStyle: 0 // 0: Hug | 1: Float | 2: Plain rectangle | 3: M3 | 4: M3 Hug | 5: Panel
+                property int cornerStyle: 0 // 0: Hug | 1: Float | 2: Plain rectangle | 3: M3 | 4: M3 Hug | 5: Panel | 6: Split Hug
                 property string groupColor: "layer1"
                 property bool floatStyleShadow: true // Show shadow behind bar when cornerStyle == 1 (Float)
                 property string borderless: "pills"

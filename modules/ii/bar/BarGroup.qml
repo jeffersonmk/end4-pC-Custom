@@ -150,7 +150,7 @@ Item {
             rightMargin: root.vertical ? 4 : 0
         }
         color: root.morphEdge !== ""
-            ? Appearance.colors.colLayer1Base
+            ? Appearance.colors.colUiPopupBackground
             : !root.paintBackground
             ? "transparent"
             : root.resolveColorName(root.style.color) !== undefined

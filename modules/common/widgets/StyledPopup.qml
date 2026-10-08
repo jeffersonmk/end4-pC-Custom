@@ -305,7 +305,7 @@ LazyLoader {
                 implicitWidth: (popupWindow.innerContent?.implicitWidth ?? 0) + margin * 2
                 implicitHeight: (popupWindow.innerContent?.implicitHeight ?? 0) + margin * 2
 
-                color: Appearance.colors.colLayer1Base
+                color: Appearance.colors.colUiPopupBackground
                 radius: Appearance.rounding.large + 5
                 topLeftRadius: popupWindow.flat("tl") ? 0 : radius
                 topRightRadius: popupWindow.flat("tr") ? 0 : radius
