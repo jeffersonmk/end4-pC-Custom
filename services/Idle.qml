@@ -1,17 +1,17 @@
 pragma Singleton
+pragma ComponentBehavior: Bound
 import qs.modules.common
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
 
 /**
- * A nice wrapper for date and time strings.
+ * Keep system awake (idle inhibitor).
  */
 Singleton {
     id: root
 
-    property alias inhibit: idleInhibitor.enabled
-    inhibit: false
+    property bool inhibit: false
 
     Connections {
         target: Persistent
@@ -29,22 +29,36 @@ Singleton {
         Persistent.states.idle.inhibit = root.inhibit;
     }
 
-    IdleInhibitor {
-        id: idleInhibitor
-        window: PanelWindow {
-            // Inhibitor requires a "visible" surface
-            // Actually not lol
-            implicitWidth: 0
-            implicitHeight: 0
-            color: "transparent"
-            // Just in case...
-            anchors {
-                right: true
-                bottom: true
-            }
-            // Make it not interactable
-            mask: Region {
-                item: null
+    // The inhibitor needs a mapped surface. A single window dies for good when its
+    // monitor disappears (monitor powered off / sleeping / input switch), silently
+    // dropping the inhibitor so hypridle locks, blanks and suspends anyway.
+    // One tiny window per screen is recreated whenever screens come back.
+    Variants {
+        model: root.inhibit ? Quickshell.screens : []
+
+        delegate: Scope {
+            id: perScreen
+            required property ShellScreen modelData
+
+            IdleInhibitor {
+                enabled: true
+                window: PanelWindow {
+                    screen: perScreen.modelData
+                    WlrLayershell.namespace: "quickshell:idleInhibitor"
+                    WlrLayershell.layer: WlrLayer.Background
+                    exclusionMode: ExclusionMode.Ignore
+                    implicitWidth: 1
+                    implicitHeight: 1
+                    color: "transparent"
+                    anchors {
+                        right: true
+                        bottom: true
+                    }
+                    // Not interactable
+                    mask: Region {
+                        item: null
+                    }
+                }
             }
         }
     }
