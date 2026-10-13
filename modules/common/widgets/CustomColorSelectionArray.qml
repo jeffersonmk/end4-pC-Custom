@@ -1,5 +1,5 @@
 import QtQuick
-import Qt5Compat.GraphicalEffects
+import QtQuick.Shapes
 import qs.modules.common
 import qs.modules.common.widgets
 
@@ -65,27 +65,38 @@ Row {
                     animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
                 }
 
-                layer.enabled: swatch.isRainbow
-                layer.effect: OpacityMask {
-                    maskSource: Rectangle {
-                        width: swatch.width
-                        height: swatch.height
-                        radius: swatch.radius
-                    }
-                }
-
-                ConicalGradient {
+                // Rainbow swatch: native Qt Quick Shapes gradient clipped by the
+                // rounded rect path. (The old Qt5Compat ConicalGradient inside a
+                // layer + OpacityMask crashed the shell when its window was torn
+                // down on reload / color scheme change.)
+                Loader {
                     anchors.fill: parent
-                    visible: swatch.isRainbow
-                    angle: 0.0
-                    gradient: Gradient {
-                        GradientStop { position: 0.0;   color: "#f44336" }
-                        GradientStop { position: 0.166; color: "#ff9800" }
-                        GradientStop { position: 0.333; color: "#ffeb3b" }
-                        GradientStop { position: 0.5;   color: "#4caf50" }
-                        GradientStop { position: 0.666; color: "#2196f3" }
-                        GradientStop { position: 0.833; color: "#9c27b0" }
-                        GradientStop { position: 1.0;   color: "#f44336" }
+                    active: swatch.isRainbow
+                    sourceComponent: Shape {
+                        id: rainbowShape
+                        preferredRendererType: Shape.CurveRenderer
+                        ShapePath {
+                            strokeWidth: -1
+                            fillGradient: ConicalGradient {
+                                centerX: rainbowShape.width / 2
+                                centerY: rainbowShape.height / 2
+                                angle: 90
+                                GradientStop { position: 0.0;   color: "#f44336" }
+                                GradientStop { position: 0.166; color: "#9c27b0" }
+                                GradientStop { position: 0.333; color: "#2196f3" }
+                                GradientStop { position: 0.5;   color: "#4caf50" }
+                                GradientStop { position: 0.666; color: "#ffeb3b" }
+                                GradientStop { position: 0.833; color: "#ff9800" }
+                                GradientStop { position: 1.0;   color: "#f44336" }
+                            }
+                            PathRectangle {
+                                x: 0
+                                y: 0
+                                width: rainbowShape.width
+                                height: rainbowShape.height
+                                radius: Math.min(swatch.radius, rainbowShape.width / 2, rainbowShape.height / 2)
+                            }
+                        }
                     }
                 }
             }
