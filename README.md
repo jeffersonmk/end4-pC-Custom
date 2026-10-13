@@ -28,13 +28,48 @@ Customized and maintained by **[@jeffersonmk](https://github.com/jeffersonmk)**
 | 🖥️ **Local-only AI chat** | The *Intelligence* sidebar only talks to models running on your machine (Ollama, vLLM, or any OpenAI-compatible server on `localhost`). Online models, API keys and the `/key` command were removed. |
 | 🎨 **Clock presets** | *Settings › Desktop › Cookie clock settings › Clock preset*: choose a visual style for the cookie clock — None (manual), Abstract, Anime, City/Space, Minimalist, Landscape, Plants, Person. No AI or API key needed. |
 | 🍅 **Digital Pomodoro** | The Pomodoro in the right sidebar (*Timer* tab) has a **digital clock** view next to the dial: phase, cycle, big countdown and progress bar, with **−/+** buttons to change the **focus** and **break** length right there (locked while it's running). Switch with the button at the top right, or in *Settings › General › Time › Pomodoro*, which also has the long break length and cycles. |
+| 🖼️ **HD album covers** | Covers are upgraded to high resolution (up to 1000–1200 px): first by asking the player itself for a bigger image (YouTube/YouTube Music, Google, Jellyfin, Navidrome), then by looking the album up on **iTunes**, **Deezer** and **MusicBrainz / Cover Art Archive**. On YouTube the real album cover is preferred over the video thumbnail (also for "Artist - Topic" / VEVO channels); a music-note icon is shown instead of a blurry crop. Downloads never show a half-loaded image. *Clear cover cache* in the player's ⋮ menu. |
+| 🎤 **Better synced lyrics** | Smarter LRCLIB lookups (several artist/title/album combinations, duration matching), so tracks with multiple artists find their lyrics. Lyrics without timestamps still scroll along with the song, with a **Not synced** badge; when there are none you get *Lyrics not available* and a **Try again** button. Seeking resyncs the lyrics. |
+| 🎚️ **Player selector** | The left-sidebar player has a working app selector with friendly names (no duplicates, no `playerctld`). It **follows whatever starts playing**, but an app you picked by hand stays selected while it's playing; when it closes it goes back to automatic. |
+| 🌐 **Webapps, isolated** | *Settings › Services › Webapps*: choose the **browser** (Automatic, Brave, Helium, Chromium, Chrome, Vivaldi, Edge, Thorium — whatever is installed) and give every webapp its **own isolated profile** (separate logins, cookies and cache, own window), like Linux Mint's *webapp-manager*. Removing a webapp also deletes its profile. Webapp icons **follow your icon theme** (e.g. Papirus' WhatsApp/YouTube Music icons) and fall back to the site's own icon. |
+| ☕ **Keep system awake, reliably** | The *Keep system awake* toggle keeps working when a monitor disconnects/reconnects (before, the PC could still suspend while the toggle looked on). |
 | 📁 **Install-folder independent** | Lock screen (Niri) and *About › Update Dots* work whatever the folder is called, so this fork can live next to `end4-pC` and `ii`. |
 
-Everything else (bar, widgets, wallpapers, lyrics, Hyprland settings…) comes from end4-pC and is kept in sync with it.
+Everything else (bar, widgets, wallpapers, Hyprland settings, presets…) comes from end4-pC and is kept in sync with it.
 
 ---
 
 ## 📸 Screenshots
+
+### What this fork adds
+
+<div align="center">
+
+| ⌨️ Keybind cheat sheet (`Super + /`) |
+|:---:|
+| ![Keybind cheat sheet](screenshots/fork/cheatsheet-keybinds.webp) |
+| 🖥️ **System tab** — specs, usage, temperatures and drives |
+| ![System tab](screenshots/fork/cheatsheet-system.webp) |
+
+| 🎵 HD cover, synced lyrics, player selector | 🌙 Night light menu |
+|:---:|:---:|
+| ![Left sidebar player](screenshots/fork/sidebar-player.webp) | ![Night light menu](screenshots/fork/night-light-menu.webp) |
+
+| 🎵 Media players overlay | 🍅 Digital Pomodoro |
+|:---:|:---:|
+| ![Media players widget](screenshots/fork/overlay-media-players.webp) | ![Digital Pomodoro](screenshots/fork/pomodoro-digital.webp) |
+
+| 🎮 Gamepad hint bar in the overlay (controller brand + button labels) |
+|:---:|
+| ![Gamepad hint bar](screenshots/fork/overlay-gamepad-hints.webp) |
+
+| 🔍 Search inside Settings | 🌐 Webapps: browser choice + isolated profiles |
+|:---:|:---:|
+| ![Settings search](screenshots/fork/settings-search.webp) | ![Webapps settings](screenshots/fork/settings-webapps.webp) |
+
+</div>
+
+### From end4-pC
 <div align="center">
 
 | 🎵 Lyrics | 🖼️ Online Wallpapers |
