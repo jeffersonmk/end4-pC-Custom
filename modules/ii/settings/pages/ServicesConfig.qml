@@ -336,7 +336,7 @@ ContentPage {
                                 Image {
                                     Layout.preferredWidth: 28
                                     Layout.preferredHeight: 28
-                                    source: webappRow.modelData.icon.startsWith("/") ? "file://" + webappRow.modelData.icon : ""
+                                    source: SystemAppearance.iconPath(webappRow.modelData.icon, "applications-internet")
                                     sourceSize: Qt.size(56, 56)
                                     fillMode: Image.PreserveAspectFit
                                     asynchronous: true

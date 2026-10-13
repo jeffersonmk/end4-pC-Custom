@@ -6,6 +6,36 @@ DATA="$HOME/.local/share/shell-webapps"
 ICONS="$DATA/icons"
 PROFILES="$DATA/profiles"
 PREFIX="shell-webapp-"
+# Site icons are installed as named hicolor icons, so the icon theme can override them
+HICOLOR="$HOME/.local/share/icons/hicolor"
+ICON_HELPER="$(dirname "$(readlink -f "$0")")/webapp_icon.py"
+
+current_icon_theme() {
+    local theme="${WEBAPP_ICON_THEME:-}"
+    [ -n "$theme" ] || theme="$(kreadconfig6 --file kdeglobals --group Icons --key Theme 2>/dev/null)"
+    [ -n "$theme" ] || theme="$(gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null | tr -d "'")"
+    printf '%s\n' "${theme:-hicolor}"
+}
+
+# install_fallback_icon <png> <icon name>
+install_fallback_icon() {
+    mkdir -p "$HICOLOR/256x256/apps"
+    [ -f "$HICOLOR/index.theme" ] || cp /usr/share/icons/hicolor/index.theme "$HICOLOR/index.theme" 2>/dev/null
+    cp -f "$1" "$HICOLOR/256x256/apps/$2.png"
+}
+
+refresh_icon_caches() {
+    [ -f "$HICOLOR/icon-theme.cache" ] && gtk-update-icon-cache -q -f -t "$HICOLOR" >/dev/null 2>&1
+    command -v kbuildsycoca6 >/dev/null 2>&1 && kbuildsycoca6 >/dev/null 2>&1
+    return 0
+}
+
+# themed_icon <fallback> <candidate>... -> theme icon name if the current theme has one, else fallback
+themed_icon() {
+    local fallback="$1" found; shift
+    found="$(python3 "$ICON_HELPER" pick "$(current_icon_theme)" "$@" 2>/dev/null)"
+    printf '%s\n' "${found:-$fallback}"
+}
 
 # Chromium-based browsers only (they support --app windows and --user-data-dir).
 # "command|Display name", in automatic-selection order.
@@ -208,7 +238,16 @@ create_one() {
     site="$(printf '%s\n' "$info" | sed -n 1p)"
     PAGE_ICONS="$(printf '%s\n' "$info" | sed -n '2,$p')"
     [ -n "$site" ] && name="$site"
-    fetch_icon "$url" "$host" "$icon" || icon="applications-internet"
+    # Site icon -> named fallback icon; the current icon theme wins when it has one
+    local fallback="applications-internet" themed_names
+    if fetch_icon "$url" "$host" "$icon"; then
+        fallback="$PREFIX$slug"
+        install_fallback_icon "$icon" "$fallback"
+        rm -f "$icon"
+    fi
+    themed_names="$(python3 "$ICON_HELPER" candidates "$host" "$name" 2>/dev/null | paste -sd';')"
+    # shellcheck disable=SC2086
+    icon="$(IFS=';'; themed_icon "$fallback" $themed_names)"
 
     # Isolated: own browser profile (logins, cookies, extensions, cache), separate
     # from the main browser and from other webapps - like Linux Mint's webapp-manager
@@ -234,7 +273,10 @@ X-Shell-Webapp=true
 X-Shell-Webapp-Url=$url
 X-Shell-Webapp-Browser=$bcmd
 X-Shell-Webapp-Profile=$profile
+X-Shell-Webapp-ThemeIcons=$themed_names
+X-Shell-Webapp-FallbackIcon=$fallback
 DESKTOP
+    refresh_icon_caches
     echo "OK $slug"
 }
 
@@ -267,7 +309,7 @@ remove_one() {
     file="$APPS/$id.desktop"
     [ -f "$file" ] && grep -q '^X-Shell-Webapp=true' "$file" || { echo "ERR not found"; return 1; }
     profile="$(sed -n 's/^X-Shell-Webapp-Profile=//p' "$file" | head -n1)"
-    rm -f "$file" "$ICONS/${id#"$PREFIX"}.png"
+    rm -f "$file" "$ICONS/${id#"$PREFIX"}.png" "$HICOLOR/256x256/apps/$id.png"
     # Delete the isolated profile too (only inside our profiles dir)
     case "$profile" in
         "$PROFILES"/?*) rm -rf -- "$profile" ;;
@@ -285,6 +327,43 @@ open_one() {
     nohup bash -c "$exec_line" >/dev/null 2>&1 &
 }
 
+# Re-pick every webapp's icon for the current icon theme (run when the theme changes).
+# Prints CHANGED if any launcher was updated.
+retheme_all() {
+    local file id icon fallback names new changed=0
+    for file in "$APPS"/$PREFIX*.desktop; do
+        [ -e "$file" ] || continue
+        grep -q '^X-Shell-Webapp=true' "$file" || continue
+        id="$(basename "$file" .desktop)"
+        icon="$(sed -n 's/^Icon=//p' "$file" | head -n1)"
+        fallback="$(sed -n 's/^X-Shell-Webapp-FallbackIcon=//p' "$file" | head -n1)"
+        names="$(sed -n 's/^X-Shell-Webapp-ThemeIcons=//p' "$file" | head -n1)"
+        if [ -z "$fallback" ]; then
+            # Older webapp with an absolute icon path: turn it into a named icon
+            if [ -f "$icon" ]; then
+                install_fallback_icon "$icon" "$id"; fallback="$id"
+            else
+                fallback="${icon:-applications-internet}"
+            fi
+            local url host
+            url="$(sed -n 's/^X-Shell-Webapp-Url=//p' "$file" | head -n1)"
+            host="$(python3 -I -c 'import sys;from urllib.parse import urlparse;print(urlparse(sys.argv[1]).hostname or "")' "$url")"
+            names="$(python3 "$ICON_HELPER" candidates "$host" "$(sed -n 's/^Name=//p' "$file" | head -n1)" 2>/dev/null | paste -sd';')"
+            printf 'X-Shell-Webapp-ThemeIcons=%s\nX-Shell-Webapp-FallbackIcon=%s\n' "$names" "$fallback" >> "$file"
+        fi
+        # shellcheck disable=SC2086
+        new="$(IFS=';'; themed_icon "$fallback" $names)"
+        if [ "$new" != "$icon" ]; then
+            sed -i "s|^Icon=.*|Icon=$new|" "$file"
+            changed=1
+        fi
+    done
+    if [ "$changed" = 1 ]; then
+        refresh_icon_caches
+        echo CHANGED
+    fi
+}
+
 command="${1:-}"
 shift || true
 case "$command" in
@@ -293,5 +372,6 @@ case "$command" in
     remove) remove_one "${1:-}" ;;
     open) open_one "${1:-}" ;;
     browsers) list_browsers ;;
-    *) echo "usage: [WEBAPP_BROWSER=cmd] [WEBAPP_ISOLATED=1|0] webapp.sh create <url>... | list | remove <id> | open <id> | browsers" >&2; exit 2 ;;
+    retheme) retheme_all ;;
+    *) echo "usage: [WEBAPP_BROWSER=cmd] [WEBAPP_ISOLATED=1|0] [WEBAPP_ICON_THEME=name] webapp.sh create <url>... | list | remove <id> | open <id> | browsers | retheme" >&2; exit 2 ;;
 esac

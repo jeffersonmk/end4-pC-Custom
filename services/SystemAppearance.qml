@@ -214,5 +214,26 @@ Singleton {
         }
     }
 
+    // Webapp launchers follow the icon theme: use the theme's icon when it has one
+    // (whatsapp, youtube-music...), the site's own icon otherwise
+    onIconThemeChanged: if (root.iconTheme !== "") webappRethemeTimer.restart()
+
+    Timer {
+        id: webappRethemeTimer
+        interval: 1500
+        onTriggered: {
+            webappRethemeProc.environment = { "WEBAPP_ICON_THEME": root.iconTheme }
+            webappRethemeProc.running = true
+        }
+    }
+
+    Process {
+        id: webappRethemeProc
+        command: ["bash", FileUtils.trimFileProtocol(`${Directories.scriptPath}/webapp/webapp.sh`), "retheme"]
+        stdout: StdioCollector {
+            onStreamFinished: if (text.includes("CHANGED")) Webapps.refresh()
+        }
+    }
+
     Component.onCompleted: root.refresh()
 }

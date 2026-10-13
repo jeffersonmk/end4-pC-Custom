@@ -36,6 +36,7 @@ Singleton {
         if (urls.length === 0 || createProc.running) return;
         root.error = "";
         createProc.environment = {
+            "WEBAPP_ICON_THEME": SystemAppearance.iconTheme ?? "",
             "WEBAPP_BROWSER": Config.options.webapps.browser ?? "",
             "WEBAPP_ISOLATED": (Config.options.webapps.isolated ?? true) ? "1" : "0"
         };
