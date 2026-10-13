@@ -243,6 +243,143 @@ ContentPage {
         }
 
         ContentSection {
+            icon: "web_asset"
+            title: Translation.tr("Webapps")
+
+            GroupedList {
+                ConfigRow {
+                    Layout.fillWidth: true
+                    MaterialSymbol {
+                        Layout.leftMargin: 8
+                        text: "public"
+                        iconSize: Appearance.font.pixelSize.larger
+                        color: Appearance.colors.colOnSecondaryContainer
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: Translation.tr("Browser")
+                        color: Appearance.colors.colOnSecondaryContainer
+                    }
+                    StyledComboBox {
+                        id: webappBrowserBox
+                        Layout.preferredWidth: 220
+                        readonly property var options: [{ id: "", name: Translation.tr("Automatic") }].concat(Webapps.browsers)
+                        model: options.map(b => b.name)
+                        currentIndex: Math.max(0, options.findIndex(b => b.id === (Config.options.webapps.browser ?? "")))
+                        onActivated: index => Config.options.webapps.browser = options[index].id
+                    }
+                }
+                ConfigSwitch {
+                    buttonIcon: "shield_person"
+                    text: Translation.tr("Isolated profile (separate logins and cookies)")
+                    checked: Config.options.webapps.isolated
+                    onCheckedChanged: Config.options.webapps.isolated = checked
+                    StyledToolTip {
+                        text: Translation.tr("Each webapp gets its own browser profile, apart from your main browser and from other webapps")
+                    }
+                }
+                ConfigTextArea {
+                    id: webappUrlField
+                    Layout.fillWidth: true
+                    fieldWidth: 320
+                    fieldHeight: 64
+                    multiline: true
+                    buttonIcon: "language"
+                    text: Translation.tr("Website URL")
+                    placeholderText: Translation.tr("example.com (one per line)")
+                    confirmButtonVisible: webappUrlField.value.trim() !== "" && !Webapps.busy
+                    confirmButtonIcon: "add"
+                    onConfirmClicked: {
+                        Webapps.create(webappUrlField.value);
+                        webappUrlField.value = "";
+                    }
+                }
+            }
+
+            StyledText {
+                visible: Webapps.browsers.length === 0
+                Layout.fillWidth: true
+                Layout.leftMargin: 8
+                text: Translation.tr("No Chromium-based browser found (Chromium, Chrome, Brave, Helium, Vivaldi, Edge)")
+                color: Appearance.colors.colSubtext
+                wrapMode: Text.Wrap
+            }
+
+            StyledText {
+                visible: Webapps.error !== ""
+                Layout.fillWidth: true
+                Layout.leftMargin: 8
+                text: Translation.tr("Could not create: %1").arg(Webapps.error)
+                color: Appearance.colors.colSubtext
+                wrapMode: Text.Wrap
+            }
+
+            ContentSubsection {
+                title: Translation.tr("Your webapps")
+                visible: Webapps.items.length > 0
+
+                GroupedList {
+                    ColumnLayout {
+                        spacing: 10
+
+                        Repeater {
+                            model: Webapps.items
+
+                            delegate: RowLayout {
+                                id: webappRow
+                                required property var modelData
+                                Layout.fillWidth: true
+                                Layout.leftMargin: 8
+                                Layout.rightMargin: 8
+                                spacing: 12
+
+                                Image {
+                                    Layout.preferredWidth: 28
+                                    Layout.preferredHeight: 28
+                                    source: webappRow.modelData.icon.startsWith("/") ? "file://" + webappRow.modelData.icon : ""
+                                    sourceSize: Qt.size(56, 56)
+                                    fillMode: Image.PreserveAspectFit
+                                    asynchronous: true
+                                }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 0
+
+                                    StyledText {
+                                        Layout.fillWidth: true
+                                        text: webappRow.modelData.name
+                                        color: Appearance.colors.colOnLayer1
+                                        elide: Text.ElideRight
+                                    }
+                                    StyledText {
+                                        Layout.fillWidth: true
+                                        text: [webappRow.modelData.url, Webapps.browserName(webappRow.modelData.browser),
+                                               webappRow.modelData.isolated ? Translation.tr("isolated") : ""].filter(t => t).join(" · ")
+                                        font.pixelSize: Appearance.font.pixelSize.smaller
+                                        color: Appearance.colors.colSubtext
+                                        elide: Text.ElideRight
+                                    }
+                                }
+
+                                RippleButtonWithIcon {
+                                    materialIcon: "open_in_new"
+                                    mainText: Translation.tr("Open")
+                                    onClicked: Webapps.open(webappRow.modelData.id)
+                                }
+                                RippleButtonWithIcon {
+                                    materialIcon: "delete"
+                                    mainText: Translation.tr("Remove")
+                                    onClicked: Webapps.remove(webappRow.modelData.id)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        ContentSection {
             icon: "deployed_code_update"
             title: Translation.tr("System updates (Arch only)")
 

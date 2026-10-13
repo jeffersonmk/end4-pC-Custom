@@ -963,6 +963,11 @@ Singleton {
                 property bool secondPrecision: false
             }
 
+            property JsonObject webapps: JsonObject {
+                property string browser: "" // command name (e.g. "brave"); "" = first installed Chromium-based browser
+                property bool isolated: true // own browser profile per webapp (separate logins/cookies)
+            }
+
             property JsonObject updates: JsonObject {
                 property bool enableCheck: true
                 property int checkInterval: 120 // minutes
