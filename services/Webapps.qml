@@ -49,6 +49,13 @@ Singleton {
         removeProc.running = true;
     }
 
+    function rename(id, name) {
+        const clean = (name ?? "").trim();
+        if (clean === "") return;
+        renameProc.command = ["bash", root.scriptPath, "rename", id, clean];
+        renameProc.running = true;
+    }
+
     function open(id) {
         openProc.command = ["bash", root.scriptPath, "open", id];
         openProc.running = true;
@@ -99,6 +106,18 @@ Singleton {
     Process {
         id: removeProc
         onExited: root.refresh()
+    }
+
+    Process {
+        id: renameProc
+        stdout: StdioCollector {
+            id: renameOut
+        }
+        onExited: {
+            const failure = renameOut.text.split("\n").find(line => line.startsWith("ERR"));
+            root.error = failure ? failure.replace(/^ERR\s*/, "") : "";
+            root.refresh();
+        }
     }
 
     Process {

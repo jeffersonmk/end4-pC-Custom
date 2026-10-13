@@ -317,6 +317,25 @@ remove_one() {
     echo "OK $id"
 }
 
+# rename_one <id> <new name>: change only the launcher's display name
+rename_one() {
+    local id="$1" name="$2" file tmp
+    case "$id" in "$PREFIX"*) ;; *) echo "ERR not a shell webapp"; return 1 ;; esac
+    file="$APPS/$id.desktop"
+    [ -f "$file" ] && grep -q '^X-Shell-Webapp=true' "$file" || { echo "ERR not found"; return 1; }
+    # One line, no control characters, trimmed, at most 80 characters
+    name="$(printf '%s' "$name" | tr '\000-\037\177' ' ' | sed -E 's/[[:space:]]+/ /g; s/^ | $//g')"
+    name="${name:0:80}"
+    [ -n "$name" ] || { echo "ERR empty name"; return 1; }
+    tmp="$(mktemp "$file.XXXXXX")" || { echo "ERR could not write"; return 1; }
+    NEW_NAME="$name" awk 'BEGIN { done = 0 }
+        /^Name=/ && !done { print "Name=" ENVIRON["NEW_NAME"]; done = 1; next }
+        { print }' "$file" > "$tmp" && cat "$tmp" > "$file" || { rm -f "$tmp"; echo "ERR could not write"; return 1; }
+    rm -f "$tmp"   # (cat keeps the launcher's original permissions)
+    command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database -q "$APPS" >/dev/null 2>&1
+    echo "OK $id"
+}
+
 open_one() {
     local id="$1" file exec_line
     case "$id" in "$PREFIX"*) ;; *) echo "ERR not a shell webapp"; return 1 ;; esac
@@ -371,7 +390,8 @@ case "$command" in
     list) list_all ;;
     remove) remove_one "${1:-}" ;;
     open) open_one "${1:-}" ;;
+    rename) rename_one "${1:-}" "${2:-}" ;;
     browsers) list_browsers ;;
     retheme) retheme_all ;;
-    *) echo "usage: [WEBAPP_BROWSER=cmd] [WEBAPP_ISOLATED=1|0] [WEBAPP_ICON_THEME=name] webapp.sh create <url>... | list | remove <id> | open <id> | browsers | retheme" >&2; exit 2 ;;
+    *) echo "usage: [WEBAPP_BROWSER=cmd] [WEBAPP_ISOLATED=1|0] [WEBAPP_ICON_THEME=name] webapp.sh create <url>... | list | remove <id> | open <id> | rename <id> <name> | browsers | retheme" >&2; exit 2 ;;
 esac

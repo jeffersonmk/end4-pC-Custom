@@ -328,10 +328,24 @@ ContentPage {
                             delegate: RowLayout {
                                 id: webappRow
                                 required property var modelData
+                                property bool editing: false
                                 Layout.fillWidth: true
                                 Layout.leftMargin: 8
                                 Layout.rightMargin: 8
                                 spacing: 12
+
+                                function startEditing() {
+                                    webappNameField.text = webappRow.modelData.name;
+                                    webappRow.editing = true;
+                                    webappNameField.forceActiveFocus();
+                                    webappNameField.selectAll();
+                                }
+                                function saveName() {
+                                    const name = webappNameField.text.trim();
+                                    if (name !== "" && name !== webappRow.modelData.name)
+                                        Webapps.rename(webappRow.modelData.id, name);
+                                    webappRow.editing = false;
+                                }
 
                                 Image {
                                     Layout.preferredWidth: 28
@@ -348,9 +362,19 @@ ContentPage {
 
                                     StyledText {
                                         Layout.fillWidth: true
+                                        visible: !webappRow.editing
                                         text: webappRow.modelData.name
                                         color: Appearance.colors.colOnLayer1
                                         elide: Text.ElideRight
+                                    }
+                                    MaterialTextField {
+                                        id: webappNameField
+                                        Layout.fillWidth: true
+                                        visible: webappRow.editing
+                                        placeholderText: Translation.tr("Webapp name")
+                                        maximumLength: 80
+                                        onAccepted: webappRow.saveName()
+                                        Keys.onEscapePressed: webappRow.editing = false
                                     }
                                     StyledText {
                                         Layout.fillWidth: true
@@ -363,11 +387,31 @@ ContentPage {
                                 }
 
                                 RippleButtonWithIcon {
+                                    visible: webappRow.editing
+                                    materialIcon: "check"
+                                    mainText: Translation.tr("Save")
+                                    onClicked: webappRow.saveName()
+                                }
+                                RippleButtonWithIcon {
+                                    visible: webappRow.editing
+                                    materialIcon: "close"
+                                    mainText: Translation.tr("Cancel")
+                                    onClicked: webappRow.editing = false
+                                }
+                                RippleButtonWithIcon {
+                                    visible: !webappRow.editing
+                                    materialIcon: "edit"
+                                    mainText: Translation.tr("Rename")
+                                    onClicked: webappRow.startEditing()
+                                }
+                                RippleButtonWithIcon {
+                                    visible: !webappRow.editing
                                     materialIcon: "open_in_new"
                                     mainText: Translation.tr("Open")
                                     onClicked: Webapps.open(webappRow.modelData.id)
                                 }
                                 RippleButtonWithIcon {
+                                    visible: !webappRow.editing
                                     materialIcon: "delete"
                                     mainText: Translation.tr("Remove")
                                     onClicked: Webapps.remove(webappRow.modelData.id)

@@ -172,8 +172,22 @@ DashboardCard {
                     delegate: RowLayout {
                         id: row
                         required property var modelData
+                        property bool editing: false
                         width: ListView.view.width
                         spacing: 10
+
+                        function startEditing() {
+                            nameField.text = row.modelData.name;
+                            row.editing = true;
+                            nameField.forceActiveFocus();
+                            nameField.selectAll();
+                        }
+                        function saveName() {
+                            const name = nameField.text.trim();
+                            if (name !== "" && name !== row.modelData.name)
+                                Webapps.rename(row.modelData.id, name);
+                            row.editing = false;
+                        }
 
                         Image {
                             Layout.preferredWidth: 28
@@ -190,9 +204,19 @@ DashboardCard {
 
                             StyledText {
                                 Layout.fillWidth: true
+                                visible: !row.editing
                                 text: row.modelData.name
                                 color: Appearance.colors.colOnSecondaryContainer
                                 elide: Text.ElideRight
+                            }
+                            MaterialTextField {
+                                id: nameField
+                                Layout.fillWidth: true
+                                visible: row.editing
+                                placeholderText: Translation.tr("Webapp name")
+                                maximumLength: 80
+                                onAccepted: row.saveName()
+                                Keys.onEscapePressed: row.editing = false
                             }
                             StyledText {
                                 Layout.fillWidth: true
@@ -205,6 +229,61 @@ DashboardCard {
                         }
 
                         RippleButton {
+                            visible: row.editing
+                            implicitWidth: 36
+                            implicitHeight: 36
+                            buttonRadius: 18
+                            colBackground: "transparent"
+                            colBackgroundHover: Qt.rgba(1, 1, 1, 0.12)
+                            colRipple: Qt.rgba(1, 1, 1, 0.2)
+                            downAction: () => row.saveName()
+                            contentItem: MaterialSymbol {
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                                text: "check"
+                                iconSize: 20
+                                color: Appearance.colors.colOnSecondaryContainer
+                            }
+                        }
+
+                        RippleButton {
+                            visible: row.editing
+                            implicitWidth: 36
+                            implicitHeight: 36
+                            buttonRadius: 18
+                            colBackground: "transparent"
+                            colBackgroundHover: Qt.rgba(1, 1, 1, 0.12)
+                            colRipple: Qt.rgba(1, 1, 1, 0.2)
+                            downAction: () => { row.editing = false }
+                            contentItem: MaterialSymbol {
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                                text: "close"
+                                iconSize: 20
+                                color: Appearance.colors.colOnSecondaryContainer
+                            }
+                        }
+
+                        RippleButton {
+                            visible: !row.editing
+                            implicitWidth: 36
+                            implicitHeight: 36
+                            buttonRadius: 18
+                            colBackground: "transparent"
+                            colBackgroundHover: Qt.rgba(1, 1, 1, 0.12)
+                            colRipple: Qt.rgba(1, 1, 1, 0.2)
+                            downAction: () => row.startEditing()
+                            contentItem: MaterialSymbol {
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                                text: "edit"
+                                iconSize: 20
+                                color: Appearance.colors.colOnSecondaryContainer
+                            }
+                        }
+
+                        RippleButton {
+                            visible: !row.editing
                             implicitWidth: 36
                             implicitHeight: 36
                             buttonRadius: 18
@@ -222,6 +301,7 @@ DashboardCard {
                         }
 
                         RippleButton {
+                            visible: !row.editing
                             implicitWidth: 36
                             implicitHeight: 36
                             buttonRadius: 18
