@@ -58,6 +58,19 @@ Singleton {
         entry: a
     }))
 
+    // Window class -> desktop entry via StartupWMClass (lowercased). Webapps
+    // (shell webapps, webapp-manager, Chromium/Brave "install as app") open as
+    // e.g. "brave-mega.nz__-Default", which only their launcher's
+    // StartupWMClass knows; this gives them the launcher's icon.
+    readonly property var startupClassEntries: {
+        const map = {};
+        for (const app of root.list) {
+            const cls = (app.startupClass ?? "").toLowerCase();
+            if (cls !== "" && !(cls in map)) map[cls] = app;
+        }
+        return map;
+    }
+
     function fuzzyQuery(search: string): var { // Idk why list<DesktopEntry> doesn't work
         if (root.sloppySearch) {
             const results = list.map(obj => ({
@@ -101,6 +114,10 @@ Singleton {
         // Quickshell's desktop entry lookup
         const entry = DesktopEntries.byId(str);
         if (entry) return entry.icon;
+
+        // Launcher whose StartupWMClass is this window class (webapps)
+        const classEntry = root.startupClassEntries[str.toLowerCase()];
+        if (classEntry && classEntry.icon) return classEntry.icon;
 
         // Normal substitutions
         if (substitutions[str]) return substitutions[str];
