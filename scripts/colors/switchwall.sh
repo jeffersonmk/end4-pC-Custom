@@ -32,7 +32,16 @@ handle_kde_material_you_colors() {
             kde_scheme_variant="scheme-tonal-spot"
             ;;
     esac
+    # kde-material-you-colors also switches the icon theme when its config has
+    # iconslight/iconsdark set, silently replacing the one picked in Settings.
+    # Remember the user's icon theme and put it back afterwards.
+    local icon_theme_before icon_theme_after
+    icon_theme_before=$(kreadconfig6 --file kdeglobals --group Icons --key Theme 2>/dev/null)
     "$XDG_CONFIG_HOME"/matugen/templates/kde/kde-material-you-colors-wrapper.sh --scheme-variant "$kde_scheme_variant"
+    icon_theme_after=$(kreadconfig6 --file kdeglobals --group Icons --key Theme 2>/dev/null)
+    if [ -n "$icon_theme_before" ] && [ "$icon_theme_after" != "$icon_theme_before" ]; then
+        bash "$SCRIPT_DIR/../system-appearance.sh" --set-icons "$icon_theme_before"
+    fi
 }
 
 pre_process() {

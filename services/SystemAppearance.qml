@@ -13,7 +13,16 @@ Singleton {
     readonly property string scriptPath: FileUtils.trimFileProtocol(`${Directories.scriptPath}/system-appearance.sh`)
 
     property int iconRevision: 0
-    property string startupIconTheme: ""
+    // Icon theme Qt loaded when the quickshell *process* started. Quickshell.iconPath()
+    // keeps using it for the whole process lifetime, even across config reloads
+    // (reload button, file changes), so it must survive reloads too - otherwise after
+    // a reload we'd think the current theme is the native one and show the old icons.
+    property alias startupIconTheme: persist.startupIconTheme
+    PersistentProperties {
+        id: persist
+        reloadableId: "systemAppearanceStartupIconTheme"
+        property string startupIconTheme: ""
+    }
     property var resolvedIcons: ({})
     readonly property var iconQueue: ({ names: [] })
 
