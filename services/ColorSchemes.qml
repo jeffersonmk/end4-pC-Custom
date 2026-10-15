@@ -61,7 +61,7 @@ Singleton {
     property var pendingArgs: []
 
     function run(args, closeSettings = true) {
-        const shouldClose = closeSettings && Config.options.settings.style !== "dashboard"
+        const shouldClose = closeSettings
         root.pendingArgs = args
         if (shouldClose) GlobalStates.settingsOpen = false
         applyTimer.interval = shouldClose ? 800 : 100

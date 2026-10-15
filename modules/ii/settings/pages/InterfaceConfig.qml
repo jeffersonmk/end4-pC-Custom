@@ -175,21 +175,7 @@ ContentPage {
                     onSelected: newValue => { Config.options.settings.style = newValue }
                     options: [
                         { displayName: Translation.tr("Default"), icon: "settings_panorama", value: "default" },
-                        { displayName: Translation.tr("Minimal"), icon: "settings_heart", value: "minimal" },
-                        { displayName: Translation.tr("Dashboard"), icon: "dashboard", value: "dashboard" }
-                    ]
-                }
-                ConfigSelectionArray {
-                    enabled: Config.options.settings.style === "dashboard"
-                    text: Translation.tr("Dashboard animation speed")
-                    icon: "speed"
-                    currentValue: Config.options.settings.animationSpeed
-                    onSelected: newValue => { Config.options.settings.animationSpeed = newValue }
-                    options: [
-                        { displayName: "1x", icon: "slow_motion_video", value: 1 },
-                        { displayName: "1.5x", icon: "play_arrow", value: 1.5 },
-                        { displayName: "2x", icon: "fast_forward", value: 2 },
-                        { displayName: "3x", icon: "bolt", value: 3 }
+                        { displayName: Translation.tr("Minimal"), icon: "settings_heart", value: "minimal" }
                     ]
                 }
                 ConfigSpinBox {
