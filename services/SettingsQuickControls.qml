@@ -109,11 +109,13 @@ Singleton {
         "desktop:Clock style": root.optionSelect("background.widgets.clock.style", [
             { displayName: Translation.tr("Digital"), icon: "timer_10", value: "digital" },
             { displayName: Translation.tr("Cookie"), icon: "cookie", value: "cookie" },
+            { displayName: Translation.tr("Daily"), icon: "today", value: "daily" },
             { displayName: Translation.tr("Pixel"), icon: "grid_view", value: "pixel" }
         ]),
         "desktop:Clock style (locked)": root.optionSelect("background.widgets.clock.styleLocked", [
             { displayName: Translation.tr("Digital"), icon: "timer_10", value: "digital" },
             { displayName: Translation.tr("Cookie"), icon: "cookie", value: "cookie" },
+            { displayName: Translation.tr("Daily"), icon: "today", value: "daily" },
             { displayName: Translation.tr("Pixel"), icon: "grid_view", value: "pixel" }
         ]),
         "desktop:Vertical": root.optionSwitch("background.widgets.clock.digital.vertical"),
@@ -343,6 +345,19 @@ Singleton {
             { displayName: Translation.tr("Dots"), icon: "radio_button_checked", value: "dot" },
             { displayName: Translation.tr("Icons"), icon: "interests", value: "icon" }
         ]),
+        "bar:Battery/Style": root.optionSelect("bar.battery.style", [
+            { displayName: "Android", icon: "battery_android_full", value: "bar" },
+            { displayName: Translation.tr("Ring"), icon: "donut_large", value: "ring" },
+            { displayName: Translation.tr("Icon"), icon: "battery_android_6", value: "icon" },
+            { displayName: Translation.tr("Number"), icon: "pin", value: "number" },
+            { displayName: "iOS", icon: "tablet_mac", value: "ios" },
+            { displayName: "macOS", icon: "laptop_mac", value: "macos" },
+            { displayName: "Windows", icon: "desktop_windows", value: "windows" }
+        ]),
+        "bar:Battery/Show percentage": root.optionSwitch("bar.battery.showPercentage"),
+        "bar:Battery/Show charging": root.optionSwitch("bar.battery.showCharging"),
+        "interface:Dock/Magnify": root.optionSwitch("dock.magnify"),
+        "interface:Dock/Magnification": root.optionScaledSpin("dock.magnification", 110, 220, 10, 100),
         "bar:Resources/Style": root.optionSelect("bar.resources.style", [
             { displayName: Translation.tr("Filled"), icon: "incomplete_circle", value: "filled" },
             { displayName: Translation.tr("Outline"), icon: "circles", value: "outline" },

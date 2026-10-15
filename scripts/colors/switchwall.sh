@@ -152,6 +152,10 @@ RESTORE_SCRIPT="$RESTORE_SCRIPT_DIR/__restore_video_wallpaper.sh"
 THUMBNAIL_DIR="$RESTORE_SCRIPT_DIR/mpvpaper_thumbnails"
 MPVPAPER_FLAGS="-p -a max"
 VIDEO_OPTS="no-audio loop hwdec=auto scale=bilinear interpolation=no video-sync=display-resample panscan=1.0 video-scale-x=1.0 video-scale-y=1.0 video-align-x=0.5 video-align-y=0.5 load-scripts=no"
+# One control socket per output, so the shell can pause and resume the live
+# wallpaper instead of only being able to kill it.
+MPV_SOCKET_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+MPV_SOCKET_PREFIX="$MPV_SOCKET_DIR/mpvpaper-"
 
 is_video() {
     local extension="${1##*.}"
@@ -170,9 +174,10 @@ create_restore_script() {
 # Time: $(date)
 
 pkill -f -9 mpvpaper
+rm -f "$MPV_SOCKET_PREFIX"*.sock
 
 for monitor in \$(hyprctl monitors -j | jq -r '.[] | .name'); do
-    mpvpaper $MPVPAPER_FLAGS -o "$VIDEO_OPTS" "\$monitor" "$video_path" &
+    mpvpaper $MPVPAPER_FLAGS -o "$VIDEO_OPTS input-ipc-server=$MPV_SOCKET_PREFIX\$monitor.sock" "\$monitor" "$video_path" &
     sleep 0.1
 done
 EOF
@@ -268,8 +273,9 @@ switch() {
 
                 local video_path="$imgpath"
                 monitors=$(hyprctl monitors -j | jq -r '.[] | .name')
+                rm -f "$MPV_SOCKET_PREFIX"*.sock
                 for monitor in $monitors; do
-                    mpvpaper $MPVPAPER_FLAGS -o "$VIDEO_OPTS" "$monitor" "$video_path" &
+                    mpvpaper $MPVPAPER_FLAGS -o "$VIDEO_OPTS input-ipc-server=$MPV_SOCKET_PREFIX$monitor.sock" "$monitor" "$video_path" &
                     sleep 0.1
                 done
             fi

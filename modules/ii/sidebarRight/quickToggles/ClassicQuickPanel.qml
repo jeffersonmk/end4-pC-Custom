@@ -35,6 +35,7 @@ AbstractQuickPanel {
                 root.openNightLightDialog();
             }
         }
+        LiveWallpaperToggle {}
         GameMode {}
         IdleInhibitor {}
         EasyEffectsToggle {}

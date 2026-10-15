@@ -265,9 +265,9 @@ Singleton {
                         property real x: 100
                         property real y: 100
                         property real z: 0
-                        property string style: "cookie"        // Options: "cookie", "digital"
+                        property string style: "cookie"        // Options: "cookie", "digital", "daily", "pixel"
                         property string color: ""
-                        property string styleLocked: "cookie"  // Options: "cookie", "digital"
+                        property string styleLocked: "cookie"  // Options: "cookie", "digital", "daily", "pixel"
                         property JsonObject cookie: JsonObject {
                             property string preset: "none"
                             property int sides: 14
@@ -294,6 +294,9 @@ Singleton {
                                 property real size: 90
                                 property real roundness: 0
                             }
+                        }
+                        property JsonObject daily: JsonObject {
+                            property string variant: "badge" // Options: "badge", "morning", "script", "bold"
                         }
                         property JsonObject pixel: JsonObject {
                             property string orientation: "vertical"
@@ -460,6 +463,10 @@ Singleton {
                         property bool shadow: true
                     }
                 }
+                property JsonObject liveWallpaper: JsonObject {
+                    property bool pauseOnBattery: false // Pause as soon as the charger is out
+                    property real pauseBelowPercent: 0 // Or only under this charge, 0 to ignore
+                }
                 property list<string> screenList: [] 
                 property string wallpaperPath: ""
                 property bool centeredWallpaper: false
@@ -543,6 +550,11 @@ Singleton {
                 }
                 
                 property list<string> screenList: [] // List of names, like "eDP-1", find out with 'hyprctl monitors' command
+                property JsonObject battery: JsonObject {
+                    property string style: "bar"
+                    property bool showPercentage: true
+                    property bool showCharging: true
+                }
                 property JsonObject utilButtons: JsonObject {
                     property bool showScreenSnip: true
                     property bool showColorPicker: true
@@ -675,6 +687,8 @@ Singleton {
                 property bool showMedia: true
                 property bool monochromeIcons: true
                 property real height: 60
+                property real magnification: 1.2
+                property bool magnify: false
                 property real hoverRegionHeight: 2
                 property bool pinnedOnStartup: false
                 property bool hoverToReveal: true // When false, only reveals on empty workspace

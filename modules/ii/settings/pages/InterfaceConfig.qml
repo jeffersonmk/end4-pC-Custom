@@ -902,6 +902,22 @@ ContentPage {
                             { displayName: Translation.tr("Hug"), icon: "dock_to_bottom", value: "hug" }
                         ]
                     }
+                    ConfigSwitch {
+                        buttonIcon: "zoom_in"
+                        text: Translation.tr("Magnification")
+                        checked: Config.options.dock.magnify
+                        onCheckedChanged: { Config.options.dock.magnify = checked }
+                    }
+                    ConfigSpinBox {
+                        visible: Config.options.dock.magnify
+                        icon: "zoom_out_map"
+                        text: Translation.tr("Magnification amount (%)")
+                        value: Config.options.dock.magnification * 100
+                        from: 110
+                        to: 220
+                        stepSize: 10
+                        onValueChanged: { Config.options.dock.magnification = value / 100 }
+                    }
                     ConfigSelectionArray {
                         text: Translation.tr("Position")
                         icon: "dock_to_bottom"
