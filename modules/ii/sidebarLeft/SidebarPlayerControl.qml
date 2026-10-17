@@ -56,6 +56,10 @@ Item {
     property var artUrl: CoverArt.url(player)
     property string artDownloadLocation: Directories.coverArt
     property bool showLyrics: Config.options.sidebar.media.showLyrics ?? true
+    // No lyrics for this track: show the waveform instead (the lyrics button keeps
+    // the user's choice, so the next track with lyrics shows them again)
+    readonly property bool lyricsUnavailable: LyricsService.status === "not_found" || LyricsService.status === "no_info"
+    readonly property bool showingLyrics: root.showLyrics && !root.lyricsUnavailable
     property string artFileName: Qt.md5(artUrl)
     property string artFilePath: `${artDownloadLocation}/${artFileName}`
     property color artDominantColor: Config.options.sidebar.media.artColors
@@ -333,7 +337,7 @@ Item {
                 Lyrics {
                     id: lyricsComp
                     anchors.fill: parent
-                    opacity: (MprisController.activePlayer !== null && Config.options.sidebar.media.showLyrics) ? 1 : 0
+                    opacity: (MprisController.activePlayer !== null && root.showingLyrics) ? 1 : 0
                     textAlignment: Text.AlignHCenter
                     textColor: blendedColors.colOnLayer0
                     activeColor: blendedColors.colPrimary
@@ -352,7 +356,7 @@ Item {
 
                 Loader {
                     anchors.fill: parent
-                    active: !Config.options.sidebar.media.showLyrics
+                    active: !root.showingLyrics
                     opacity: active ? 1 : 0
                     Behavior on opacity { NumberAnimation { duration: 200 } }
 
@@ -363,6 +367,30 @@ Item {
                         dotSize: 5
                         dotSpacing: 6
                         maxBarHeight: parent.height * 0.8
+                    }
+                }
+
+                // Small hint over the automatic waveform, with the retry action
+                RippleButton {
+                    anchors.top: parent.top
+                    anchors.topMargin: 14
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    visible: root.showLyrics && LyricsService.status === "not_found"
+                    implicitHeight: 28
+                    horizontalPadding: 12
+                    buttonRadius: 14
+                    colBackground: ColorUtils.transparentize(blendedColors.colSecondaryContainer, 0.7)
+                    colBackgroundHover: blendedColors.colSecondaryContainerHover
+                    colRipple: blendedColors.colSecondaryContainerActive
+                    onClicked: LyricsService.retry()
+                    contentItem: RowLayout {
+                        spacing: 4
+                        MaterialSymbol { text: "refresh"; iconSize: 16; color: blendedColors.colOnSecondaryContainer }
+                        StyledText {
+                            text: Translation.tr("Lyrics not available · Try again")
+                            font.pixelSize: Appearance.font.pixelSize.smaller
+                            color: blendedColors.colOnSecondaryContainer
+                        }
                     }
                 }
             }
