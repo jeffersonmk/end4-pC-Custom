@@ -295,7 +295,8 @@ list_all() {
             browser="$(sed -n 's/^Exec=//p' "$file" | head -n1 | cut -d' ' -f1)"; browser="${browser##*/}"
         fi
         items="$(jq -c --arg id "$id" --arg name "$name" --arg url "$url" --arg icon "$icon" --arg browser "$browser" --argjson isolated "$([ -n "$profile" ] && echo true || echo false)" \
-            '. + [{id: $id, name: $name, url: $url, icon: $icon, browser: $browser, isolated: $isolated}]' <<<"$items")"
+            --argjson custom "$(grep -q '^X-Shell-Webapp-CustomIcon=' "$file" && echo true || echo false)" \
+            '. + [{id: $id, name: $name, url: $url, icon: $icon, browser: $browser, isolated: $isolated, customIcon: $custom}]' <<<"$items")"
     done
     jq -c 'sort_by(.name | ascii_downcase)' <<<"$items"
 }
@@ -310,6 +311,7 @@ remove_one() {
     [ -f "$file" ] && grep -q '^X-Shell-Webapp=true' "$file" || { echo "ERR not found"; return 1; }
     profile="$(sed -n 's/^X-Shell-Webapp-Profile=//p' "$file" | head -n1)"
     rm -f "$file" "$ICONS/${id#"$PREFIX"}.png" "$HICOLOR/256x256/apps/$id.png"
+    remove_custom_icons "$id"
     # Delete the isolated profile too (only inside our profiles dir)
     case "$profile" in
         "$PROFILES"/?*) rm -rf -- "$profile" ;;
@@ -336,6 +338,81 @@ rename_one() {
     echo "OK $id"
 }
 
+# set_key <file> <key> <value>: replace the key's line, or append it (keeps permissions)
+set_key() {
+    local file="$1" key="$2" value="$3" tmp
+    tmp="$(mktemp "$file.XXXXXX")" || return 1
+    KEY="$key" VALUE="$value" awk 'BEGIN { done = 0 }
+        index($0, ENVIRON["KEY"] "=") == 1 { if (!done) print ENVIRON["KEY"] "=" ENVIRON["VALUE"]; done = 1; next }
+        { print }
+        END { if (!done) print ENVIRON["KEY"] "=" ENVIRON["VALUE"] }' "$file" > "$tmp" && cat "$tmp" > "$file"
+    local status=$?
+    rm -f "$tmp"
+    return "$status"
+}
+
+# Custom icon images installed by "seticon" (named <id>-custom-<time>, so caches never show an old one)
+remove_custom_icons() {
+    rm -f "$HICOLOR"/256x256/apps/"$1"-custom-*.png "$HICOLOR"/scalable/apps/"$1"-custom-*.svg
+}
+
+# seticon_one <id> <image file | theme icon name>: the user's own icon; kept across theme changes
+seticon_one() {
+    local id="$1" src="$2" file icon
+    case "$id" in "$PREFIX"*) ;; *) echo "ERR not a shell webapp"; return 1 ;; esac
+    file="$APPS/$id.desktop"
+    [ -f "$file" ] && grep -q '^X-Shell-Webapp=true' "$file" || { echo "ERR not found"; return 1; }
+    src="${src#file://}"
+    [ -n "$src" ] || { echo "ERR no icon"; return 1; }
+    if [ -f "$src" ]; then
+        icon="$id-custom-$(date +%s)"
+        mkdir -p "$HICOLOR"
+        [ -f "$HICOLOR/index.theme" ] || cp /usr/share/icons/hicolor/index.theme "$HICOLOR/index.theme" 2>/dev/null
+        case "${src,,}" in
+            *.svg)
+                remove_custom_icons "$id"
+                mkdir -p "$HICOLOR/scalable/apps"
+                cp -f "$src" "$HICOLOR/scalable/apps/$icon.svg" || { echo "ERR could not copy the image"; return 1; } ;;
+            *)
+                icon_ok "$src" 16 || { echo "ERR not an image"; return 1; }
+                mkdir -p "$HICOLOR/256x256/apps"
+                # Square canvas (centered, transparent) so wide/tall images aren't stretched
+                save_icon "$src" "$HICOLOR/256x256/apps/$icon.png.new" \
+                    && magick "$HICOLOR/256x256/apps/$icon.png.new" -background none -gravity center -extent 256x256 "png:$HICOLOR/256x256/apps/$icon.png.new" \
+                    || { rm -f "$HICOLOR/256x256/apps/$icon.png.new"; echo "ERR could not convert the image"; return 1; }
+                remove_custom_icons "$id"
+                mv -f "$HICOLOR/256x256/apps/$icon.png.new" "$HICOLOR/256x256/apps/$icon.png" ;;
+        esac
+    elif [[ "$src" =~ ^[A-Za-z0-9._+-]+$ ]]; then
+        icon="$src"   # icon from the current icon theme
+        remove_custom_icons "$id"
+    else
+        echo "ERR file not found"; return 1
+    fi
+    set_key "$file" Icon "$icon" && set_key "$file" X-Shell-Webapp-CustomIcon "$icon" || { echo "ERR could not write"; return 1; }
+    refresh_icon_caches
+    echo "OK $id"
+}
+
+# reseticon_one <id>: back to the automatic icon (site icon / icon theme)
+reseticon_one() {
+    local id="$1" file fallback names icon tmp
+    case "$id" in "$PREFIX"*) ;; *) echo "ERR not a shell webapp"; return 1 ;; esac
+    file="$APPS/$id.desktop"
+    [ -f "$file" ] && grep -q '^X-Shell-Webapp=true' "$file" || { echo "ERR not found"; return 1; }
+    fallback="$(sed -n 's/^X-Shell-Webapp-FallbackIcon=//p' "$file" | head -n1)"
+    names="$(sed -n 's/^X-Shell-Webapp-ThemeIcons=//p' "$file" | head -n1)"
+    # shellcheck disable=SC2086
+    icon="$(IFS=';'; themed_icon "${fallback:-applications-internet}" $names)"
+    tmp="$(mktemp "$file.XXXXXX")" || { echo "ERR could not write"; return 1; }
+    grep -v '^X-Shell-Webapp-CustomIcon=' "$file" > "$tmp" && cat "$tmp" > "$file"
+    rm -f "$tmp"
+    set_key "$file" Icon "$icon" || { echo "ERR could not write"; return 1; }
+    remove_custom_icons "$id"
+    refresh_icon_caches
+    echo "OK $id"
+}
+
 open_one() {
     local id="$1" file exec_line
     case "$id" in "$PREFIX"*) ;; *) echo "ERR not a shell webapp"; return 1 ;; esac
@@ -353,6 +430,7 @@ retheme_all() {
     for file in "$APPS"/$PREFIX*.desktop; do
         [ -e "$file" ] || continue
         grep -q '^X-Shell-Webapp=true' "$file" || continue
+        grep -q '^X-Shell-Webapp-CustomIcon=' "$file" && continue   # the user's own icon
         id="$(basename "$file" .desktop)"
         icon="$(sed -n 's/^Icon=//p' "$file" | head -n1)"
         fallback="$(sed -n 's/^X-Shell-Webapp-FallbackIcon=//p' "$file" | head -n1)"
@@ -391,7 +469,9 @@ case "$command" in
     remove) remove_one "${1:-}" ;;
     open) open_one "${1:-}" ;;
     rename) rename_one "${1:-}" "${2:-}" ;;
+    seticon) seticon_one "${1:-}" "${2:-}" ;;
+    reseticon) reseticon_one "${1:-}" ;;
     browsers) list_browsers ;;
     retheme) retheme_all ;;
-    *) echo "usage: [WEBAPP_BROWSER=cmd] [WEBAPP_ISOLATED=1|0] [WEBAPP_ICON_THEME=name] webapp.sh create <url>... | list | remove <id> | open <id> | rename <id> <name> | browsers | retheme" >&2; exit 2 ;;
+    *) echo "usage: [WEBAPP_BROWSER=cmd] [WEBAPP_ISOLATED=1|0] [WEBAPP_ICON_THEME=name] webapp.sh create <url>... | list | remove <id> | open <id> | rename <id> <name> | seticon <id> <image|icon name> | reseticon <id> | browsers | retheme" >&2; exit 2 ;;
 esac

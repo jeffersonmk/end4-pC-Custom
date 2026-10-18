@@ -347,13 +347,40 @@ ContentPage {
                                     webappRow.editing = false;
                                 }
 
-                                Image {
-                                    Layout.preferredWidth: 28
-                                    Layout.preferredHeight: 28
-                                    source: SystemAppearance.iconPath(webappRow.modelData.icon, "applications-internet")
-                                    sourceSize: Qt.size(56, 56)
-                                    fillMode: Image.PreserveAspectFit
-                                    asynchronous: true
+                                // Click the icon to choose your own (theme icon or image)
+                                RippleButton {
+                                    id: webappIconButton
+                                    implicitWidth: 40
+                                    implicitHeight: 40
+                                    buttonRadius: Appearance.rounding.small
+                                    onClicked: Webapps.chooseIcon(webappRow.modelData.id)
+                                    contentItem: Item {
+                                        Image {
+                                            anchors.centerIn: parent
+                                            width: 28
+                                            height: 28
+                                            source: SystemAppearance.iconPath(webappRow.modelData.icon, "applications-internet")
+                                            sourceSize: Qt.size(56, 56)
+                                            fillMode: Image.PreserveAspectFit
+                                            asynchronous: true
+                                        }
+                                        Rectangle {
+                                            anchors.right: parent.right
+                                            anchors.bottom: parent.bottom
+                                            width: 16
+                                            height: 16
+                                            radius: 8
+                                            visible: webappIconButton.hovered
+                                            color: Appearance.colors.colPrimary
+                                            MaterialSymbol {
+                                                anchors.centerIn: parent
+                                                text: "edit"
+                                                iconSize: 11
+                                                color: Appearance.colors.colOnPrimary
+                                            }
+                                        }
+                                    }
+                                    StyledToolTip { text: Translation.tr("Change icon") }
                                 }
 
                                 ColumnLayout {
@@ -397,6 +424,13 @@ ContentPage {
                                     materialIcon: "close"
                                     mainText: Translation.tr("Cancel")
                                     onClicked: webappRow.editing = false
+                                }
+                                RippleButtonWithIcon {
+                                    visible: !webappRow.editing && (webappRow.modelData.customIcon ?? false)
+                                    materialIcon: "restart_alt"
+                                    mainText: ""
+                                    StyledToolTip { text: Translation.tr("Back to the automatic icon") }
+                                    onClicked: Webapps.resetIcon(webappRow.modelData.id)
                                 }
                                 RippleButtonWithIcon {
                                     visible: !webappRow.editing

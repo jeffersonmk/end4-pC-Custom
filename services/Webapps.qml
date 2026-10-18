@@ -56,6 +56,30 @@ Singleton {
         renameProc.running = true;
     }
 
+    // Pick an icon: KDE icon chooser (icon theme icons, plus "Browse..." for any image),
+    // or a plain image picker when kdialog isn't installed
+    function chooseIcon(id) {
+        if (chooseIconProc.running) return;
+        chooseIconProc.webappId = id;
+        chooseIconProc.command = ["bash", "-c",
+            'if command -v kdialog >/dev/null 2>&1; then kdialog --title "$1" --geticon Desktop Application; '
+            + 'else zenity --file-selection --title="$1" --file-filter="$2 | *.png *.svg *.jpg *.jpeg *.webp *.ico *.bmp"; fi',
+            "_", Translation.tr("Choose an icon"), Translation.tr("Images")];
+        chooseIconProc.running = true;
+    }
+
+    function setIcon(id, icon) {
+        const clean = (icon ?? "").trim();
+        if (clean === "") return;
+        iconProc.command = ["bash", root.scriptPath, "seticon", id, clean];
+        iconProc.running = true;
+    }
+
+    function resetIcon(id) {
+        iconProc.command = ["bash", root.scriptPath, "reseticon", id];
+        iconProc.running = true;
+    }
+
     function open(id) {
         openProc.command = ["bash", root.scriptPath, "open", id];
         openProc.running = true;
@@ -122,5 +146,30 @@ Singleton {
 
     Process {
         id: openProc
+    }
+
+    Process {
+        id: chooseIconProc
+        property string webappId: ""
+        stdout: StdioCollector {
+            id: chooseIconOut
+        }
+        onExited: (exitCode) => {
+            const picked = chooseIconOut.text.trim();
+            if (exitCode === 0 && picked !== "") root.setIcon(webappId, picked);
+        }
+    }
+
+    Process {
+        id: iconProc
+        environment: ({ "WEBAPP_ICON_THEME": SystemAppearance.iconTheme ?? "" })
+        stdout: StdioCollector {
+            id: iconOut
+        }
+        onExited: {
+            const failure = iconOut.text.split("\n").find(line => line.startsWith("ERR"));
+            root.error = failure ? failure.replace(/^ERR\s*/, "") : "";
+            root.refresh();
+        }
     }
 }
