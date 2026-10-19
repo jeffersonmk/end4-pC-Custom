@@ -30,6 +30,11 @@ Item {
     implicitHeight: pageColumn.implicitHeight
 
     readonly property string scriptPath: FileUtils.trimFileProtocol(`${Directories.scriptPath}/hardware/hwinfo.py`)
+    // MEGA cloud card (MEGAcmd), shown once it's installed; polled only while this page is open
+    readonly property bool showCloud: MegaCloud.installed
+    onActiveChanged: active ? MegaCloud.consumers++ : MegaCloud.consumers--
+    Component.onCompleted: if (active) MegaCloud.consumers++
+    Component.onDestruction: if (active) MegaCloud.consumers--
     readonly property var gpuSpec: specs?.gpus?.[0] ?? null
     readonly property var gpuLive: live?.gpus?.[0] ?? null
 
@@ -275,12 +280,14 @@ Item {
                 const d = root.specs?.drives ?? [];
                 if (d.length === 0) return "--";
                 const total = d.reduce((sum, x) => sum + (x.size || 0), 0);
-                return Translation.tr("%1 drive(s) · %2 total").arg(d.length).arg(root.diskSize(total));
+                const local = Translation.tr("%1 drive(s) · %2 total").arg(d.length).arg(root.diskSize(total));
+                return root.showCloud && MegaCloud.total > 0
+                    ? `${local} · ${Translation.tr("MEGA %1").arg(root.fsSize(MegaCloud.total))}` : local;
             }
 
             GridLayout {
                 Layout.fillWidth: true
-                columns: Math.max(1, Math.min(root.live?.drives?.length ?? root.specs?.drives?.length ?? 1, Math.floor(width / 380)))
+                columns: Math.max(1, Math.min((root.live?.drives?.length ?? root.specs?.drives?.length ?? 1) + (root.showCloud ? 1 : 0), Math.floor(width / 380)))
                 columnSpacing: 10
                 rowSpacing: 10
                 Repeater {
@@ -292,6 +299,12 @@ Item {
                         Layout.alignment: Qt.AlignTop
                         drive: modelData
                     }
+                }
+                CloudCard {
+                    visible: root.showCloud
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    Layout.alignment: Qt.AlignTop
                 }
             }
         }
@@ -565,6 +578,125 @@ Item {
                 color: root.usageColor(bar.fraction)
                 Behavior on width {
                     NumberAnimation { duration: 500; easing.type: Easing.OutCubic }
+                }
+            }
+        }
+    }
+
+    component CloudCard: Rectangle {
+        id: cloudCard
+        readonly property bool problem: MegaCloud.status === "error"
+        implicitHeight: cloudColumn.implicitHeight + 24
+        radius: Appearance.rounding.normal
+        color: Appearance.colors.colLayer2
+
+        ColumnLayout {
+            id: cloudColumn
+            anchors {
+                fill: parent
+                margins: 12
+            }
+            spacing: 10
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                MaterialSymbol {
+                    text: MegaCloud.icon
+                    iconSize: 22
+                    color: cloudCard.problem ? Appearance.colors.colError : Appearance.colors.colPrimary
+                    opacity: MegaCloud.loggedIn ? 1 : 0.5
+                    SequentialAnimation on opacity {
+                        running: MegaCloud.status === "syncing"
+                        loops: Animation.Infinite
+                        alwaysRunToEnd: true
+                        NumberAnimation { to: 0.35; duration: 700; easing.type: Easing.InOutSine }
+                        NumberAnimation { to: 1; duration: 700; easing.type: Easing.InOutSine }
+                    }
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: "MEGA"
+                        elide: Text.ElideRight
+                        color: Appearance.colors.colOnLayer1
+                        font.pixelSize: Appearance.font.pixelSize.normal
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: [Translation.tr("Cloud"), MegaCloud.stateText,
+                               MegaCloud.syncs.length > 0 ? Translation.tr("%1 synced folder(s)").arg(MegaCloud.syncs.length) : ""].filter(x => x).join(" · ")
+                        elide: Text.ElideRight
+                        color: cloudCard.problem ? Appearance.colors.colError : Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                    }
+                }
+                RippleButton {
+                    implicitWidth: 30
+                    implicitHeight: 30
+                    buttonRadius: Appearance.rounding.full
+                    onClicked: MegaCloud.loggedIn ? MegaCloud.openMega() : MegaCloud.openLoginTerminal()
+                    contentItem: MaterialSymbol {
+                        anchors.centerIn: parent
+                        text: MegaCloud.loggedIn ? "open_in_new" : "login"
+                        iconSize: 18
+                        color: Appearance.colors.colOnLayer1
+                    }
+                    StyledToolTip {
+                        text: MegaCloud.loggedIn ? Translation.tr("Open MEGA") : Translation.tr("Log in (mega-login in a terminal)")
+                    }
+                }
+            }
+
+            UsageBar {
+                visible: MegaCloud.loggedIn
+                icon: "cloud"
+                label: Translation.tr("Cloud drive")
+                used: MegaCloud.used
+                total: MegaCloud.total
+                valueText: `${root.fsSize(MegaCloud.used)} / ${root.fsSize(MegaCloud.total)}`
+            }
+
+            Repeater {
+                model: MegaCloud.syncs
+                delegate: RowLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: 6
+                    MaterialSymbol {
+                        text: modelData.error !== "" ? "sync_problem" : modelData.status === "Synced" ? "cloud_done" : "cloud_sync"
+                        iconSize: 16
+                        color: modelData.error !== "" ? Appearance.colors.colError : Appearance.colors.colSubtext
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: modelData.local.replace(/^\/home\/[^/]+/, "~")
+                        elide: Text.ElideMiddle
+                        color: Appearance.colors.colOnLayer1
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                    }
+                    StyledText {
+                        text: modelData.error !== "" ? modelData.error : modelData.run === "Running" ? modelData.status : modelData.run
+                        color: modelData.error !== "" ? Appearance.colors.colError : Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                    }
+                }
+            }
+
+            RowLayout {
+                visible: MegaCloud.uploads > 0 || MegaCloud.downloads > 0
+                spacing: 6
+                MaterialSymbol {
+                    text: "swap_vert"
+                    iconSize: 16
+                    color: Appearance.colors.colSubtext
+                }
+                StyledText {
+                    text: Translation.tr("Transfers: %1 up, %2 down").arg(MegaCloud.uploads).arg(MegaCloud.downloads)
+                    color: Appearance.colors.colSubtext
+                    font.pixelSize: Appearance.font.pixelSize.smaller
                 }
             }
         }
