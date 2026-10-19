@@ -867,6 +867,7 @@ Singleton {
                     property string math: "="
                     property string shellCommand: "$"
                     property string webSearch: "?"
+                    property string duckAi: "duck " // launcher: "duck <question>" asks Duck.ai
                 }
             }
 
@@ -979,6 +980,7 @@ Singleton {
             property JsonObject webapps: JsonObject {
                 property string browser: "" // command name (e.g. "brave"); "" = first installed Chromium-based browser
                 property bool isolated: true // own browser profile per webapp (separate logins/cookies)
+                property string quickWebapp: "" // webapp id for the quick window (Super+Shift+D); "" = Duck.ai
             }
 
             property JsonObject updates: JsonObject {

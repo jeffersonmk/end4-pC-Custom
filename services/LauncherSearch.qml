@@ -414,6 +414,20 @@ Singleton {
                 Qt.openUrlExternally(url);
             }
         });
+        const duckPrefix = Config.options.search.prefix.duckAi ?? "duck ";
+        const startsWithDuckPrefix = duckPrefix !== "" && root.query.toLowerCase().startsWith(duckPrefix.toLowerCase());
+        const duckQuestion = startsWithDuckPrefix ? root.query.slice(duckPrefix.length).trim() : root.query.trim();
+        const duckIcon = (Webapps.items.find(item => item.id === Webapps.duckAiId) ?? {}).icon ?? "";
+        const duckResultObject = resultComp.createObject(null, {
+            name: duckQuestion,
+            verb: Translation.tr("Ask"),
+            type: "Duck.ai",
+            iconName: duckIcon !== "" ? duckIcon : "forum",
+            iconType: duckIcon !== "" ? LauncherSearchResult.IconType.System : LauncherSearchResult.IconType.Material,
+            execute: () => {
+                Webapps.askDuckAi(duckQuestion);
+            }
+        });
         const launcherActionObjects = root.allActions.map(action => {
             const actionString = `${Config.options.search.prefix.action}${action.action}`;
             if (actionString.startsWith(root.query) || root.query.startsWith(actionString)) {
@@ -443,6 +457,8 @@ Singleton {
             result.push(commandResultObject);
         } else if (startsWithWebSearchPrefix) {
             result.push(webSearchResultObject);
+        } else if (startsWithDuckPrefix && duckQuestion !== "") {
+            result.push(duckResultObject);
         }
 
         //////////////// Apps //////////////////
@@ -460,6 +476,8 @@ Singleton {
                 result.push(mathResultObject);
             if (!startsWithWebSearchPrefix)
                 result.push(webSearchResultObject);
+            if (!startsWithDuckPrefix && duckQuestion !== "")
+                result.push(duckResultObject);
         }
         
         return result;

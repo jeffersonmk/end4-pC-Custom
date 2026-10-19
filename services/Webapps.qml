@@ -31,15 +31,19 @@ Singleton {
         browsersProc.running = true;
     }
 
-    function create(text) {
-        const urls = root.parseUrls(text);
-        if (urls.length === 0 || createProc.running) return;
-        root.error = "";
-        createProc.environment = {
+    function createEnv() {
+        return {
             "WEBAPP_ICON_THEME": SystemAppearance.iconTheme ?? "",
             "WEBAPP_BROWSER": Config.options.webapps.browser ?? "",
             "WEBAPP_ISOLATED": (Config.options.webapps.isolated ?? true) ? "1" : "0"
         };
+    }
+
+    function create(text) {
+        const urls = root.parseUrls(text);
+        if (urls.length === 0 || createProc.running) return;
+        root.error = "";
+        createProc.environment = root.createEnv();
         createProc.command = ["bash", root.scriptPath, "create", ...urls];
         createProc.running = true;
     }
@@ -78,6 +82,25 @@ Singleton {
     function resetIcon(id) {
         iconProc.command = ["bash", root.scriptPath, "reseticon", id];
         iconProc.running = true;
+    }
+
+    // ── Quick window: a webapp floating over the current workspace (Duck.ai by default) ──
+    readonly property string duckAiId: (root.items.find(item => /^https?:\/\/(www\.)?duck\.ai(\/|$)/.test(item.url ?? "")) ?? {}).id ?? ""
+
+    function toggleQuick() {
+        if (quickProc.running) return;
+        quickProc.environment = root.createEnv();
+        quickProc.command = ["bash", root.scriptPath, "quick", Config.options.webapps.quickWebapp ?? ""];
+        quickProc.running = true;
+    }
+
+    // Ask Duck.ai in the quick window (the question is sent right away)
+    function askDuckAi(text) {
+        const clean = (text ?? "").trim();
+        if (clean === "" || quickProc.running) return;
+        quickProc.environment = root.createEnv();
+        quickProc.command = ["bash", root.scriptPath, "ask", clean];
+        quickProc.running = true;
     }
 
     function open(id) {
@@ -146,6 +169,36 @@ Singleton {
 
     Process {
         id: openProc
+    }
+
+    Process {
+        id: quickProc
+        stdout: StdioCollector {
+            id: quickOut
+        }
+        onExited: {
+            const failure = quickOut.text.split("\n").find(line => line.startsWith("ERR"));
+            if (failure)
+                Quickshell.execDetached(["notify-send", "-a", "Shell", Translation.tr("Quick window"), failure.replace(/^ERR\s*/, "")]);
+            if (root.duckAiId === "") root.refresh(); // the Duck.ai webapp may have just been created
+        }
+    }
+
+    IpcHandler {
+        target: "webapps"
+
+        function quick(): void {
+            root.toggleQuick();
+        }
+        function ask(question: string): void {
+            root.askDuckAi(question);
+        }
+    }
+
+    CompositorGlobalShortcut {
+        name: "webappQuickToggle"
+        description: "Shows/hides the quick webapp window (Duck.ai by default)"
+        onPressed: root.toggleQuick()
     }
 
     Process {

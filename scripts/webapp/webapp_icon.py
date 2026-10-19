@@ -44,6 +44,8 @@ KNOWN = {
     "app.slack.com": "slack",
     "web.skype.com": "skype",
     "mega.nz": "mega",
+    "duck.ai": "duckduckgo",
+    "duckduckgo.com": "duckduckgo",
     "primevideo.com": "amazon-prime-video",
     "tv.apple.com": "apple-tv",
     "music.apple.com": "apple-music",

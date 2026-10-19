@@ -413,6 +413,140 @@ reseticon_one() {
     echo "OK $id"
 }
 
+# ── Quick window: a webapp floating over the current workspace (Hyprland special workspace) ──
+QUICK_SIZE="(monitor_w*0.55) (monitor_h*0.75)"
+DUCK_URL="https://duck.ai/"
+
+# lua_str <text>: quote text as a Lua string for hyprctl dispatch
+lua_str() {
+    local t="${1//\\/\\\\}"
+    t="${t//\'/\\\'}"
+    printf "'%s'" "$t"
+}
+
+hypr() { hyprctl dispatch "$1" >/dev/null 2>&1; }
+
+# duck_id: the Duck.ai webapp (created on first use)
+duck_id() {
+    local file
+    for file in "$APPS"/$PREFIX*.desktop; do
+        [ -e "$file" ] || continue
+        grep -q '^X-Shell-Webapp=true' "$file" || continue
+        if sed -n 's/^X-Shell-Webapp-Url=//p' "$file" | grep -qE '^https?://(www\.)?duck\.ai(/|$)'; then
+            basename "$file" .desktop; return 0
+        fi
+    done
+    create_one "$DUCK_URL" >/dev/null || return 1
+    duck_id
+}
+
+# quick_target [id]: valid webapp id, or the Duck.ai one
+quick_target() {
+    local id="${1:-}"
+    case "$id" in
+        "$PREFIX"?*) [ -f "$APPS/$id.desktop" ] && grep -q '^X-Shell-Webapp=true' "$APPS/$id.desktop" && { echo "$id"; return 0; } ;;
+    esac
+    duck_id
+}
+
+# Window addresses of a webapp (by its window class)
+quick_windows() {
+    local cls
+    cls="$(sed -n 's/^StartupWMClass=//p' "$APPS/$1.desktop" | head -n1)"
+    [ -n "$cls" ] || return 0
+    hyprctl clients -j 2>/dev/null | jq -r --arg c "$cls" '.[] | select(.class == $c) | "\(.address) \(.workspace.name)"'
+}
+
+# quick_launch <id> <special ws> [url]: start the webapp floating, centered, hidden in the special workspace
+quick_launch() {
+    local id="$1" ws="$2" url="${3:-}" exec_line
+    exec_line="$(sed -n 's/^Exec=//p' "$APPS/$id.desktop" | head -n1 | sed -E 's/ %[a-zA-Z]//g')"
+    [ -n "$exec_line" ] || return 1
+    if [ -n "$url" ]; then
+        exec_line="$(EXEC="$exec_line" URL="$url" python3 -I -c 'import os,re; print(re.sub(r"--app=\"[^\"]*\"", lambda m: "--app=\"" + os.environ["URL"] + "\"", os.environ["EXEC"], count=1))')"
+    fi
+    hypr "hl.dsp.exec_cmd($(lua_str "$exec_line"), { float = true, size = $(lua_str "$QUICK_SIZE"), center = true, workspace = $(lua_str "special:$ws silent") })"
+}
+
+# Wait until a window of the webapp that isn't in <old addresses> shows up
+quick_wait_new() {
+    local id="$1" old="$2" i addr
+    for i in $(seq 1 60); do
+        addr="$(quick_windows "$id" | cut -d' ' -f1 | grep -vxF -f <(printf '%s\n' "$old") | head -n1)"
+        [ -n "$addr" ] && { echo "$addr"; return 0; }
+        sleep 0.25
+    done
+    return 1
+}
+
+# quick_adopt <address> <special ws>: move a window into the quick window, floating and centered
+quick_adopt() {
+    local addr="$1" ws="$2" w h
+    read -r w h < <(hyprctl monitors -j 2>/dev/null | jq -r '.[] | select(.focused) | "\((.width / .scale * 0.55) | floor) \((.height / .scale * 0.75) | floor)"')
+    hypr "hl.dsp.window.move({ workspace = $(lua_str "special:$ws"), follow = false, window = $(lua_str "address:$addr") })"
+    hypr "hl.dsp.window.float({ action = 'enable', window = $(lua_str "address:$addr") })"
+    [ -n "$w" ] && hypr "hl.dsp.window.resize({ x = $w, y = $h, exact = true, window = $(lua_str "address:$addr") })"
+    hypr "hl.dsp.window.center({ window = $(lua_str "address:$addr") })"
+}
+
+shown_special() {
+    hyprctl monitors -j 2>/dev/null | jq -r '.[] | select(.focused) | .specialWorkspace.name'
+}
+
+# quick_one [id]: show/hide the quick window (opens it the first time)
+quick_one() {
+    local id ws windows addr wsname
+    id="$(quick_target "${1:-}")" || { echo "ERR could not create the Duck.ai webapp"; return 1; }
+    ws="webapp-${id#"$PREFIX"}"
+    windows="$(quick_windows "$id")"
+    if [ -z "$windows" ]; then
+        quick_launch "$id" "$ws" || { echo "ERR could not start"; return 1; }
+        quick_wait_new "$id" "" >/dev/null || { echo "ERR window did not open"; return 1; }
+        hypr "hl.dsp.workspace.toggle_special($(lua_str "$ws"))"
+        echo "OK shown"; return 0
+    fi
+    # Bring windows opened elsewhere (e.g. from the app menu) into the quick window
+    while read -r addr wsname; do
+        [ "$wsname" = "special:$ws" ] || quick_adopt "$addr" "$ws"
+    done <<<"$windows"
+    hypr "hl.dsp.workspace.toggle_special($(lua_str "$ws"))"
+    echo "OK toggled"
+}
+
+# ask_one <text> [id]: ask Duck.ai in the quick window (sent right away; the previous chat stays in its history)
+ask_one() {
+    local text="$1" id ws old addr q profile i
+    text="$(printf '%s' "$text" | tr '\000-\037\177' ' ' | sed -E 's/[[:space:]]+/ /g; s/^ | $//g')"
+    [ -n "$text" ] || { echo "ERR empty question"; return 1; }
+    id="$(quick_target "${2:-}")" || { echo "ERR could not create the Duck.ai webapp"; return 1; }
+    ws="webapp-${id#"$PREFIX"}"
+    q="$(printf '%s' "${text:0:2000}" | jq -sRr @uri)"
+    old="$(quick_windows "$id" | cut -d' ' -f1)"
+    profile="$(sed -n 's/^X-Shell-Webapp-Profile=//p' "$APPS/$id.desktop" | head -n1)"
+    # A running browser opens new windows itself, without the launch rules: with its own
+    # profile, close the old window first so the new one starts hidden and floating
+    if [ -n "$old" ] && [ -n "$profile" ]; then
+        for addr in $old; do
+            hypr "hl.dsp.window.close({ window = $(lua_str "address:$addr") })"
+        done
+        old=""
+        for i in $(seq 1 40); do
+            [ -L "$profile/SingletonLock" ] || break
+            sleep 0.1
+        done
+    fi
+    quick_launch "$id" "$ws" "${DUCK_URL}?q=$q&prompt=1" || { echo "ERR could not start"; return 1; }
+    addr="$(quick_wait_new "$id" "$old")" || { echo "ERR window did not open"; return 1; }
+    # Shared browser profile: the window opened outside the quick window, bring it in
+    [ "$(hyprctl clients -j | jq -r --arg a "$addr" '.[] | select(.address == $a) | .workspace.name')" = "special:$ws" ] \
+        || quick_adopt "$addr" "$ws"
+    for old in $old; do
+        hypr "hl.dsp.window.close({ window = $(lua_str "address:$old") })"
+    done
+    [ "$(shown_special)" = "special:$ws" ] || hypr "hl.dsp.workspace.toggle_special($(lua_str "$ws"))"
+    echo "OK $addr"
+}
+
 open_one() {
     local id="$1" file exec_line
     case "$id" in "$PREFIX"*) ;; *) echo "ERR not a shell webapp"; return 1 ;; esac
@@ -473,5 +607,7 @@ case "$command" in
     reseticon) reseticon_one "${1:-}" ;;
     browsers) list_browsers ;;
     retheme) retheme_all ;;
-    *) echo "usage: [WEBAPP_BROWSER=cmd] [WEBAPP_ISOLATED=1|0] [WEBAPP_ICON_THEME=name] webapp.sh create <url>... | list | remove <id> | open <id> | rename <id> <name> | seticon <id> <image|icon name> | reseticon <id> | browsers | retheme" >&2; exit 2 ;;
+    quick) quick_one "${1:-}" ;;
+    ask) ask_one "${1:-}" "${2:-}" ;;
+    *) echo "usage: [WEBAPP_BROWSER=cmd] [WEBAPP_ISOLATED=1|0] [WEBAPP_ICON_THEME=name] webapp.sh create <url>... | list | remove <id> | open <id> | rename <id> <name> | seticon <id> <image|icon name> | reseticon <id> | browsers | retheme | quick [id] | ask <question> [id]" >&2; exit 2 ;;
 esac

@@ -278,6 +278,32 @@ ContentPage {
                         text: Translation.tr("Each webapp gets its own browser profile, apart from your main browser and from other webapps")
                     }
                 }
+                ConfigRow {
+                    Layout.fillWidth: true
+                    MaterialSymbol {
+                        Layout.leftMargin: 8
+                        text: "picture_in_picture"
+                        iconSize: Appearance.font.pixelSize.larger
+                        color: Appearance.colors.colOnSecondaryContainer
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: Translation.tr("Quick window (Super+Shift+D)")
+                        color: Appearance.colors.colOnSecondaryContainer
+                    }
+                    StyledComboBox {
+                        id: webappQuickBox
+                        Layout.preferredWidth: 220
+                        readonly property var options: [{ id: "", name: "Duck.ai" }].concat(
+                            Webapps.items.filter(item => item.id !== Webapps.duckAiId).map(item => ({ id: item.id, name: item.name })))
+                        model: options.map(o => o.name)
+                        currentIndex: Math.max(0, options.findIndex(o => o.id === (Config.options.webapps.quickWebapp ?? "")))
+                        onActivated: index => Config.options.webapps.quickWebapp = options[index].id
+                        StyledToolTip {
+                            text: Translation.tr("The shortcut shows/hides this webapp floating over any workspace. In the app menu, type \"%1\" and a question to ask Duck.ai").arg((Config.options.search.prefix.duckAi ?? "duck ").trim())
+                        }
+                    }
+                }
                 ConfigTextArea {
                     id: webappUrlField
                     Layout.fillWidth: true
