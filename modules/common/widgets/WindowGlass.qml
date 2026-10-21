@@ -63,10 +63,7 @@ Item {
                 }
             }
         }
-        if (!best) return guess
-        // hyprctl layers reports global layout coordinates; make them monitor-local
-        const monitor = HyprlandData.monitors.find(m => m.name === s.name)
-        return Qt.point(best.x - (monitor?.x ?? 0), best.y - (monitor?.y ?? 0))
+        return best ? Qt.point(best.x, best.y) : guess
     }
 
     function popupOffset(w, s) {
