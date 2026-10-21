@@ -80,6 +80,7 @@ Item {
             bottomRightRadius: Appearance.rounding.normal
             color: Appearance.colors.colLayer1
 
+
             SwipeView { // Content pages
                 id: swipeView
                 anchors.fill: parent

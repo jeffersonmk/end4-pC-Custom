@@ -175,6 +175,7 @@ Singleton {
         "desktop:Show alignment grid while dragging": root.optionSwitch("background.showGrid"),
         "desktop:Show snap lines when dropping": root.optionSwitch("background.showSnapLines"),
 
+        "interface:Glassy UI": root.optionSwitch("background.widgets.glass.enable"),
         "interface:Transparency/Enable": root.optionSwitch("appearance.transparency.enable"),
         "interface:Automatic (from wallpaper)": root.optionSwitch("appearance.transparency.automatic"),
         "interface:Transparency/Background": root.optionSlider("appearance.transparency.backgroundTransparency", 0, 0.6, [0.11]),

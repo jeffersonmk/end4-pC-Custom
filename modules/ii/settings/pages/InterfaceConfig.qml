@@ -119,6 +119,23 @@ ContentPage {
         }
 
         ContentSection {
+            icon: "water_drop"
+            shape: MaterialShape.Shape.Cookie6Sided
+            title: Translation.tr("Glassy UI")
+            GroupedList {
+                ConfigSwitch {
+                    buttonIcon: "water_drop"
+                    text: Translation.tr("Glassy UI")
+                    checked: Config.options.background.widgets.glass.enable
+                    onCheckedChanged: { Config.options.background.widgets.glass.enable = checked }
+                    StyledToolTip {
+                        text: Translation.tr("Frosted glass on the bar, sidebars, dock, menus, notifications and desktop widgets")
+                    }
+                }
+            }
+        }
+
+        ContentSection {
             icon: "motion_mode"
             shape: MaterialShape.Shape.Cookie6Sided
             title: Translation.tr("Transparency")

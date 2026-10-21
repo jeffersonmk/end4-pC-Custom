@@ -162,6 +162,13 @@ Item {
         radius: Appearance.rounding.normal
         clip: true
 
+        WindowGlass {
+            anchors.fill: parent
+            cardRadius: parent.radius
+            tint: root.artDominantColor
+            tintStrength: 0.4
+        }
+
         Image {
             id: blurArtSource
             anchors.fill: parent
