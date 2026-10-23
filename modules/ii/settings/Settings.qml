@@ -78,12 +78,6 @@ Scope {
 
         Rectangle {
             id: settingsWindow
-            WindowGlass {
-                anchors.fill: parent
-                glassEnabled: (parent?.color.a ?? 0) > 0
-                cardRadius: parent?.radius ?? 0
-                tint: parent?.color ?? 'transparent'
-            }
             width: Config.options.settings.style === "minimal" ? Math.min(parent.width - 70, 1060 * sizeScale) : Math.min(parent.width - 80, 1060 * sizeScale)
             height: Math.min(parent.height - 80, 720 * sizeScale)
             color: Appearance.colors.colUiBackground

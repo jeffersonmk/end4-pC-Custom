@@ -1,5 +1,4 @@
 import qs.modules.common
-import qs.modules.common.widgets
 import QtQuick
 import QtQuick.Layouts
 
@@ -143,16 +142,6 @@ Item {
 
     Rectangle {
         id: background
-        WindowGlass {
-            anchors.fill: parent
-            glassEnabled: (parent?.fill.a ?? 0) > 0
-            cardRadius: parent?.radius ?? 0
-            topLeftRadius: parent && parent.topLeftRadius >= 0 ? parent.topLeftRadius : cardRadius
-            topRightRadius: parent && parent.topRightRadius >= 0 ? parent.topRightRadius : cardRadius
-            bottomLeftRadius: parent && parent.bottomLeftRadius >= 0 ? parent.bottomLeftRadius : cardRadius
-            bottomRightRadius: parent && parent.bottomRightRadius >= 0 ? parent.bottomRightRadius : cardRadius
-            tint: parent?.fill ?? 'transparent'
-        }
         anchors {
             fill: parent
             topMargin: root.vertical ? 0 : 4
@@ -160,7 +149,7 @@ Item {
             leftMargin: root.vertical ? 4 : 0
             rightMargin: root.vertical ? 4 : 0
         }
-        property color fill: root.morphEdge !== ""
+        color: root.morphEdge !== ""
             ? Appearance.colors.colUiPopupBackground
             : !root.paintBackground
             ? "transparent"
@@ -176,11 +165,9 @@ Item {
                             ? Appearance.colors.colUiBackground
                             : root.resolvedGroupColor)
 
-        color: Config.options.background.widgets.glass.enable && fill.a > 0 ? "transparent" : fill
 
         border.width: root.morphEdge !== "" ? 0 : root.style?.borderWidth ?? (root.paintBackground && root.isSegmented && !root.isMaterial ? 1 : 0)
         border.color: root.resolveColorName(root.style?.borderColor) ?? Appearance.colors.colLayer0Border
-
         topLeftRadius: root.flatTL ? 0 : root.style?.radius ?? ((root.isMaterial && root.paintMaterialPill) ? root.fullRadius : (Config.options?.bar.borderless === "separated" ? root.fullRadius : root.startRadius))
         bottomLeftRadius: root.flatBL ? 0 : root.style?.radius ?? ((root.isMaterial && root.paintMaterialPill) ? root.fullRadius : (Config.options?.bar.borderless === "separated" ? root.fullRadius : root.vertical ? root.endRadius : root.startRadius))
         topRightRadius: root.flatTR ? 0 : root.style?.radius ?? ((root.isMaterial && root.paintMaterialPill) ? root.fullRadius : (Config.options?.bar.borderless === "separated" ? root.fullRadius : root.vertical ? root.startRadius : root.endRadius))

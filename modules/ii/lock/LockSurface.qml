@@ -170,8 +170,6 @@ MouseArea {
     Toolbar {
         id: mainIsland
         colBackground: root.toolbarColor
-        glass: true
-        glassFullscreen: true
         anchors {
             horizontalCenter: parent.horizontalCenter
             bottom: parent.bottom
@@ -305,8 +303,6 @@ MouseArea {
     Toolbar {
         id: leftIsland
         colBackground: root.toolbarColor
-        glass: true
-        glassFullscreen: true
         visible: Config.options.lock.showToolbars
         anchors {
             right: mainIsland.left
@@ -499,8 +495,6 @@ MouseArea {
     Toolbar {
         id: rightIsland
         colBackground: root.toolbarColor
-        glass: true
-        glassFullscreen: true
         visible: Config.options.lock.showToolbars
         anchors {
             left: mainIsland.right

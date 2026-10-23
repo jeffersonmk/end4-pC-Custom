@@ -29,12 +29,6 @@ Item {
             radius: Appearance.rounding.verylarge
             color: Appearance.colors.colUiBackground
 
-            WindowGlass {
-                anchors.fill: parent
-                cardRadius: parent.radius
-                tint: parent.color
-            }
-
             GridLayout {
                 id: schemeGrid
                 anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
@@ -129,12 +123,6 @@ Item {
             radius: Appearance.rounding.verylarge
             color: Appearance.colors.colUiBackground
 
-            WindowGlass {
-                anchors.fill: parent
-                cardRadius: parent.radius
-                tint: parent.color
-            }
-
             ColumnLayout {
                 id: centeredCol
                 anchors { fill: parent; margins: 8 }
@@ -201,12 +189,6 @@ Item {
             implicitHeight: transCol.implicitHeight + 16
             radius: Appearance.rounding.verylarge
             color: Appearance.colors.colUiBackground
-
-            WindowGlass {
-                anchors.fill: parent
-                cardRadius: parent.radius
-                tint: parent.color
-            }
 
             ColumnLayout {
                 id: transCol

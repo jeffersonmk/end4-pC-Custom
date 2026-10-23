@@ -32,8 +32,7 @@ Singleton {
     }
     property real autoContentTransparency: 0.9
     property real backgroundTransparency: Config?.options.appearance.transparency.enable ? Config?.options.appearance.transparency.automatic ? autoBackgroundTransparency : Config?.options.appearance.transparency.backgroundTransparency : 0
-    property real contentTransparency: Math.max(glassContentTransparency, Config?.options.appearance.transparency.automatic ? autoContentTransparency : Config?.options.appearance.transparency.contentTransparency)
-    readonly property real glassContentTransparency: Config?.options.background.widgets.glass.enable ? 0.6 : 0
+    property real contentTransparency: Config?.options.appearance.transparency.automatic ? autoContentTransparency : Config?.options.appearance.transparency.contentTransparency
     
     function getColorFromName(name) {
         switch (name) {
@@ -168,7 +167,7 @@ Singleton {
         property color colLayer4Active: ColorUtils.solveOverlayColor(colLayer3Base, ColorUtils.mix(colLayer4Base, colOnLayer4, 0.80), 1 - root.contentTransparency);
         property color colOnLayer4: m3colors.m3onSurface;
         // Primary
-        property color colPrimary: Config?.options.background.widgets.glass.enable ? ColorUtils.transparentize(m3colors.m3primary, 0.1) : m3colors.m3primary
+        property color colPrimary: m3colors.m3primary
         property color colOnPrimary: m3colors.m3onPrimary
         property color colPrimaryHover: ColorUtils.mix(colors.colPrimary, colLayer1Hover, 0.87)
         property color colPrimaryActive: ColorUtils.mix(colors.colPrimary, colLayer1Active, 0.7)

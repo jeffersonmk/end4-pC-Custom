@@ -250,19 +250,13 @@ Scope { // Scope
                 target: sidebarLeftBackground
                 radius: sidebarLeftBackground.radius
             }
-            WindowGlass {
-                anchors.fill: sidebarLeftBackground
-                cardRadius: sidebarLeftBackground.radius
-                tint: Appearance.colors.colUiBackground
-            }
-
             Rectangle {
                 id: sidebarLeftBackground
                 anchors.top: parent.top
                 anchors.topMargin: Appearance.sizes.hyprlandGapsOut
                 width: panelWindow.sidebarWidth - Appearance.sizes.hyprlandGapsOut - Appearance.sizes.elevationMargin
                 height: parent.height - Appearance.sizes.hyprlandGapsOut * 2
-                color: Config.options.background.widgets.glass.enable ? "transparent" : Appearance.colors.colUiBackground
+                color: Appearance.colors.colUiBackground
                 border.width: 1
                 border.color: ColorUtils.transparentize(Appearance.colors.colLayer0Border, 0.8) 
                 radius: Appearance.rounding.screenRounding - Appearance.sizes.hyprlandGapsOut + 1
@@ -330,16 +324,10 @@ Scope { // Scope
                 if (!visible) GlobalStates.sidebarLeftOpen = false;
             }
             
-            WindowGlass {
-                anchors.fill: detachedSidebarBackground
-                cardRadius: detachedSidebarBackground.radius
-                tint: Appearance.colors.colUiBackground
-            }
-
             Rectangle {
                 id: detachedSidebarBackground
                 anchors.fill: parent
-                color: Config.options.background.widgets.glass.enable ? "transparent" : Appearance.colors.colUiBackground
+                color: Appearance.colors.colUiBackground
 
                 Keys.onPressed: (event) => {
                     if (event.modifiers === Qt.ControlModifier) {

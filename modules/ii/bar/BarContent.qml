@@ -83,22 +83,14 @@ Item {
         id: barBackground
         anchors.fill: parent
         anchors.margins: Config.options.bar.cornerStyle === 1 ? Appearance.sizes.hyprlandGapsOut : 0
-        property color fill: (!centerOnly && Config.options.bar.showBackground && Config.options.bar.cornerStyle !== 2 && !root.useTabWrapper)
+        color: (!centerOnly && Config.options.bar.showBackground && Config.options.bar.cornerStyle !== 2 && !root.useTabWrapper)
             ? (Config.options.bar.followFrameColor
                 ? Appearance.getColorFromName(Config.options.bar.frameColor)
                 : Appearance.colors.colUiBackground)
             : "transparent"
-        color: Config.options.background.widgets.glass.enable && fill.a > 0 ? "transparent" : fill
         radius: Config.options.bar.cornerStyle === 1 ? Appearance.rounding.windowRounding : 0
         border.width: (!centerOnly && Config.options.bar.cornerStyle === 1) ? 1 : 0
         border.color: Config.options.bar.cornerStyle === 1 && !Config.options.bar.showBackground ? "transparent" : ColorUtils.transparentize(Appearance.colors.colLayer0Border, 0.8) 
-    }
-
-    WindowGlass {
-        anchors.fill: barBackground
-        glassEnabled: barBackground.fill.a > 0
-        cardRadius: barBackground.radius
-        tint: barBackground.fill
     }
 
     // center-only
@@ -114,7 +106,6 @@ Item {
 
     RoundCorner {
         id: leftPillCorner
-        glass: true
         visible: root.centerOnly && Config.options.bar.showBackground && Config.options.bar.cornerStyle === 0 
         x: barContent.centerPillX - implicitSize
         implicitSize: Appearance.rounding.screenRounding
@@ -145,16 +136,6 @@ Item {
 
     Rectangle {
         id: centerPill
-        WindowGlass {
-            anchors.fill: parent
-            glassEnabled: (parent?.fill.a ?? 0) > 0
-            cardRadius: parent?.radius ?? 0
-            topLeftRadius: parent && parent.topLeftRadius >= 0 ? parent.topLeftRadius : cardRadius
-            topRightRadius: parent && parent.topRightRadius >= 0 ? parent.topRightRadius : cardRadius
-            bottomLeftRadius: parent && parent.bottomLeftRadius >= 0 ? parent.bottomLeftRadius : cardRadius
-            bottomRightRadius: parent && parent.bottomRightRadius >= 0 ? parent.bottomRightRadius : cardRadius
-            tint: parent?.fill ?? 'transparent'
-        }
         visible: centerOnly && Config.options.bar.showBackground && Config.options.bar.cornerStyle !== 2 
         anchors.verticalCenter: parent.verticalCenter
         anchors.horizontalCenter: parent.horizontalCenter
@@ -162,10 +143,9 @@ Item {
             ? (Config.options.bar.cornerStyle === 1 ? middleRow.implicitWidth + 8 : middleRow.implicitWidth - 4)
             : middleRow.implicitWidth + 10
         height: GlobalStates.dynamicIslandEnabled ? parent.height : parent.height - (Config.options.bar.cornerStyle === 1 ? Appearance.sizes.hyprlandGapsOut * 2 : 0)
-        property color fill: root.useTabWrapper ? "transparent" : Config.options.bar.followFrameColor 
+        color: root.useTabWrapper ? "transparent" : Config.options.bar.followFrameColor 
             ? Appearance.getColorFromName(Config.options.bar.frameColor)
             : Appearance.colors.colUiBackground
-        color: Config.options.background.widgets.glass.enable && fill.a > 0 ? "transparent" : fill
         radius: Config.options.bar.cornerStyle === 1 || root.useTabWrapper ? Appearance.rounding.windowRounding : 0
         border.width: Config.options.bar.cornerStyle === 1 ? 1 : 0
         border.color: Appearance.colors.colLayer0Border
@@ -178,7 +158,6 @@ Item {
 
     RoundCorner {
         id: rightPillCorner
-        glass: true
         visible: root.centerOnly && Config.options.bar.showBackground && Config.options.bar.cornerStyle === 0
         x: barContent.centerPillX + barContent.centerPillWidth
         implicitSize: Appearance.rounding.screenRounding
@@ -223,16 +202,6 @@ Item {
             // Material pill wrapper
             Rectangle {
                 id: leftMaterialPill
-                WindowGlass {
-                    anchors.fill: parent
-                    glassEnabled: (parent?.fill.a ?? 0) > 0
-                    cardRadius: parent?.radius ?? 0
-                    topLeftRadius: parent && parent.topLeftRadius >= 0 ? parent.topLeftRadius : cardRadius
-                    topRightRadius: parent && parent.topRightRadius >= 0 ? parent.topRightRadius : cardRadius
-                    bottomLeftRadius: parent && parent.bottomLeftRadius >= 0 ? parent.bottomLeftRadius : cardRadius
-                    bottomRightRadius: parent && parent.bottomRightRadius >= 0 ? parent.bottomRightRadius : cardRadius
-                    tint: parent?.fill ?? 'transparent'
-                }
                 visible: root.useTabWrapper && root.effectiveLeftLayout.length > 0
                 anchors.left: root.hasTabs ? parent.left : undefined
                 anchors.top: (root.hasTabs && !Config.options.bar.bottom) ? parent.top : undefined
@@ -241,8 +210,7 @@ Item {
                 width: leftMaterialRow.implicitWidth + (root.hasTabs ? 16 : 10)
                 height: root.hasTabs ? parent.height : leftMaterialRow.implicitHeight
                 radius: root.hasTabs ? 0 : Appearance.rounding.full
-                property color fill: root.materialPillBgColor
-                color: Config.options.background.widgets.glass.enable && fill.a > 0 ? "transparent" : fill
+                color: root.materialPillBgColor
 
                 topLeftRadius: root.hasTabs ? 0 : radius
                 bottomLeftRadius: root.hasTabs ? 0 : radius
@@ -283,7 +251,6 @@ Item {
 
             RoundCorner {
                 id: leftRightOutwardCorner
-                glass: true
                 visible: root.hasTabs && root.effectiveLeftLayout.length > 0
                 anchors.left: leftMaterialPill.right
                 anchors.top: !Config.options.bar.bottom ? parent.top : undefined
@@ -371,7 +338,6 @@ Item {
 
             RoundCorner {
                 id: centerLeftOutwardCorner
-                glass: true
                 visible: root.hasTabs && root.effectiveMiddleLayout.length > 0
                 anchors.right: centerMaterialPill.left
                 anchors.top: !Config.options.bar.bottom ? parent.top : undefined
@@ -384,23 +350,12 @@ Item {
             // Material pill wrapper
             Rectangle {
                 id: centerMaterialPill
-                WindowGlass {
-                    anchors.fill: parent
-                    glassEnabled: (parent?.fill.a ?? 0) > 0
-                    cardRadius: parent?.radius ?? 0
-                    topLeftRadius: parent && parent.topLeftRadius >= 0 ? parent.topLeftRadius : cardRadius
-                    topRightRadius: parent && parent.topRightRadius >= 0 ? parent.topRightRadius : cardRadius
-                    bottomLeftRadius: parent && parent.bottomLeftRadius >= 0 ? parent.bottomLeftRadius : cardRadius
-                    bottomRightRadius: parent && parent.bottomRightRadius >= 0 ? parent.bottomRightRadius : cardRadius
-                    tint: parent?.fill ?? 'transparent'
-                }
                 visible: root.useTabWrapper && root.effectiveMiddleLayout.length > 0
                 anchors.centerIn: parent
                 width: centerMaterialRow.implicitWidth + (root.hasTabs ? 16 : 10)
                 height: root.hasTabs ? parent.height : centerMaterialRow.implicitHeight 
                 radius: root.hasTabs ? 0 : Appearance.rounding.full
-                property color fill: root.materialPillBgColor
-                color: Config.options.background.widgets.glass.enable && fill.a > 0 ? "transparent" : fill
+                color: root.materialPillBgColor
 
                 topLeftRadius: (root.hasTabs && Config.options.bar.bottom) ? Appearance.rounding.screenRounding : (root.hasTabs ? 0 : radius)
                 topRightRadius: (root.hasTabs && Config.options.bar.bottom) ? Appearance.rounding.screenRounding : (root.hasTabs ? 0 : radius)
@@ -442,7 +397,6 @@ Item {
 
             RoundCorner {
                 id: centerRightOutwardCorner
-                glass: true
                 visible: root.hasTabs && root.effectiveMiddleLayout.length > 0
                 anchors.left: centerMaterialPill.right
                 anchors.top: !Config.options.bar.bottom ? parent.top : undefined
@@ -511,7 +465,6 @@ Item {
 
             RoundCorner {
                 id: rightLeftOutwardCorner
-                glass: true
                 visible: root.hasTabs && root.effectiveRightLayout.length > 0
                 anchors.right: rightMaterialPill.left
                 anchors.top: !Config.options.bar.bottom ? parent.top : undefined
@@ -524,16 +477,6 @@ Item {
             // Material pill wrapper
             Rectangle {
                 id: rightMaterialPill
-                WindowGlass {
-                    anchors.fill: parent
-                    glassEnabled: (parent?.fill.a ?? 0) > 0
-                    cardRadius: parent?.radius ?? 0
-                    topLeftRadius: parent && parent.topLeftRadius >= 0 ? parent.topLeftRadius : cardRadius
-                    topRightRadius: parent && parent.topRightRadius >= 0 ? parent.topRightRadius : cardRadius
-                    bottomLeftRadius: parent && parent.bottomLeftRadius >= 0 ? parent.bottomLeftRadius : cardRadius
-                    bottomRightRadius: parent && parent.bottomRightRadius >= 0 ? parent.bottomRightRadius : cardRadius
-                    tint: parent?.fill ?? 'transparent'
-                }
                 visible: root.useTabWrapper && root.effectiveRightLayout.length > 0
                 anchors.right: root.hasTabs ? parent.right : undefined
                 anchors.top: (root.hasTabs && !Config.options.bar.bottom) ? parent.top : undefined
@@ -542,8 +485,7 @@ Item {
                 width: rightMaterialRow.implicitWidth + (root.hasTabs ? 16 : 10)
                 height: root.hasTabs ? parent.height : rightMaterialRow.implicitHeight 
                 radius: root.hasTabs ? 0 : Appearance.rounding.full
-                property color fill: root.materialPillBgColor
-                color: Config.options.background.widgets.glass.enable && fill.a > 0 ? "transparent" : fill
+                color: root.materialPillBgColor
 
                 topRightRadius: root.hasTabs ? 0 : radius
                 bottomRightRadius: root.hasTabs ? 0 : radius

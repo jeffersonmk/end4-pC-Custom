@@ -151,12 +151,6 @@ Scope {
                         color: Appearance.colors.colUiBackground
                         clip: true
 
-                        WindowGlass {
-                            anchors.fill: parent
-                            cardRadius: parent.radius
-                            tint: parent.color
-                        }
-
                         Carousel {
                             anchors.fill: parent
                             anchors.margins: 10
@@ -206,15 +200,6 @@ Scope {
                                 topRightRadius: isFirst ? Appearance.rounding.normal : Appearance.rounding.unsharpenmore
                                 bottomLeftRadius: isLast ? Appearance.rounding.normal : Appearance.rounding.unsharpenmore
                                 bottomRightRadius: isLast ? Appearance.rounding.normal : Appearance.rounding.unsharpenmore
-
-                                WindowGlass {
-                                    anchors.fill: parent
-                                    topLeftRadius: menuRow.topLeftRadius
-                                    topRightRadius: menuRow.topRightRadius
-                                    bottomLeftRadius: menuRow.bottomLeftRadius
-                                    bottomRightRadius: menuRow.bottomRightRadius
-                                    tint: menuRow.color
-                                }
 
                                 RippleButton {
                                     id: rowButton
