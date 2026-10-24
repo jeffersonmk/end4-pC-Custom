@@ -284,6 +284,7 @@ Scope {
                             DockActiveApps {
                                 id: activeApps
                                 contextMenu: dockContextMenu
+                                appListRoot: dragSlots
                             }
 
                             DockSeparator {
