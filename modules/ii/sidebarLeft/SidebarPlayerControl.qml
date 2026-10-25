@@ -56,8 +56,8 @@ Item {
     property var artUrl: CoverArt.url(player)
     property string artDownloadLocation: Directories.coverArt
     property bool showLyrics: Config.options.sidebar.media.showLyrics ?? true
-    // No lyrics for this track: show the waveform instead (the lyrics button keeps
-    // the user's choice, so the next track with lyrics shows them again)
+    // No lyrics for this track (not found or instrumental): show only the waveform
+    // (the lyrics button keeps the user's choice, so the next track with lyrics shows them again)
     readonly property bool lyricsUnavailable: LyricsService.status === "not_found" || LyricsService.status === "no_info"
     readonly property bool showingLyrics: root.showLyrics && !root.lyricsUnavailable
     property string artFileName: Qt.md5(artUrl)
@@ -367,30 +367,6 @@ Item {
                         dotSize: 5
                         dotSpacing: 6
                         maxBarHeight: parent.height * 0.8
-                    }
-                }
-
-                // Small hint over the automatic waveform, with the retry action
-                RippleButton {
-                    anchors.top: parent.top
-                    anchors.topMargin: 14
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    visible: root.showLyrics && LyricsService.status === "not_found"
-                    implicitHeight: 28
-                    horizontalPadding: 12
-                    buttonRadius: 14
-                    colBackground: ColorUtils.transparentize(blendedColors.colSecondaryContainer, 0.7)
-                    colBackgroundHover: blendedColors.colSecondaryContainerHover
-                    colRipple: blendedColors.colSecondaryContainerActive
-                    onClicked: LyricsService.retry()
-                    contentItem: RowLayout {
-                        spacing: 4
-                        MaterialSymbol { text: "refresh"; iconSize: 16; color: blendedColors.colOnSecondaryContainer }
-                        StyledText {
-                            text: Translation.tr("Lyrics not available · Try again")
-                            font.pixelSize: Appearance.font.pixelSize.smaller
-                            color: blendedColors.colOnSecondaryContainer
-                        }
                     }
                 }
             }

@@ -175,6 +175,8 @@ def fetch(title: str, artist: str, duration: float, album: str):
                 if album:
                     params["album_name"] = album
                 d = http_json("get", params)
+                if isinstance(d, dict) and d.get("instrumental") and matches(d, titles, artists):
+                    return [], False
                 if isinstance(d, dict) and pick([d], titles, artists, duration):
                     return parse_lrc(d["syncedLyrics"]), False
                 if isinstance(d, dict):
@@ -210,8 +212,17 @@ def cache_path(title, artist, duration, album) -> str:
     return os.path.join(CACHE_DIR, hashlib.md5(key.encode()).hexdigest() + ".json")
 
 
+INSTRUMENTAL_LINE = re.compile(r"^[\s♪♫♬♩🎵🎶*.\-–—()\[\]]*(instrumental|instrumentation|no lyrics)?[\s♪♫♬♩🎵🎶*.\-–—()\[\]]*$", re.I)
+
+
+def is_instrumental(lines: list) -> bool:
+    """Lyrics that only say the track is instrumental (or only hold music notes)."""
+    return all(INSTRUMENTAL_LINE.match(l.get("text") or "") for l in lines)
+
+
 def emit(lines: list, plain: bool = False):
-    if not lines:
+    # Instrumental tracks are shown like tracks without lyrics (waveform in the player)
+    if not lines or is_instrumental(lines):
         print("not_found", flush=True)
         return
     parts = []
