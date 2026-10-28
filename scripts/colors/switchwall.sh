@@ -59,6 +59,14 @@ pre_process() {
     fi
 }
 
+# Tint the Papirus folder icons with the wallpaper color (opt-in). Runs after
+# kde-material-you-colors, which may touch the icon theme, so the two never race.
+apply_papirus_folder_color() {
+    [ -f "$SHELL_CONFIG_FILE" ] || return 0
+    [ "$(jq -r '.appearance.wallpaperTheming.papirusFolderColor // false' "$SHELL_CONFIG_FILE")" = "true" ] || return 0
+    python3 "$SCRIPT_DIR/../theming/papirus-folder-color.py" --apply >/dev/null 2>&1 || true
+}
+
 post_process() {
     local screen_width="$1"
     local screen_height="$2"
@@ -69,7 +77,7 @@ post_process() {
         return
     fi
 
-    handle_kde_material_you_colors &
+    { handle_kde_material_you_colors; apply_papirus_folder_color; } &
     "$SCRIPT_DIR/code/material-code-set-color.sh" &
 }
 
@@ -89,7 +97,7 @@ apply_named_scheme() {
             return 1
         }
     "$SCRIPT_DIR"/applycolor.sh
-    apply_named_qt &
+    { apply_named_qt; apply_papirus_folder_color; } &
     "$SCRIPT_DIR/code/material-code-set-color.sh" &
 }
 

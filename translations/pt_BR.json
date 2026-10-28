@@ -750,5 +750,11 @@
   "Install MEGAcmd (paru -S megacmd) to use this widget": "Instale o MEGAcmd (paru -S megacmd) para usar este widget",
   "Click: open MEGA · Right click: refresh": "Clique: abrir o MEGA · Botão direito: atualizar",
   "Cloud space": "Espaço na nuvem",
-  "%1% used": "%1% usado"
+  "%1% used": "%1% usado",
+  "Papirus folder color": "Cor das pastas do Papirus",
+  "Tints the Papirus folder icons (Dolphin and other apps) with the wallpaper color. Needs the Papirus icon theme.": "Pinta as pastas do Papirus (Dolphin e outros apps) com a cor do papel de parede. Requer o tema de ícones Papirus.",
+  "Mode": "Modo",
+  "Palette": "Paleta",
+  "Change accent color": "Mudar a cor de destaque",
+  "The preview is an approximation of your screen.": "A prévia é uma aproximação da sua tela."
 }
