@@ -880,6 +880,8 @@ Singleton {
                 property real bannerFocusX: 0.5
                 property real bannerFocusY: 0.5
                 property bool keepRightSidebarLoaded: true
+                property string leftLastPage: "home"
+                property bool leftRememberPage: true
                 property JsonObject media: JsonObject {
                     property bool enable: true
                     property bool artColors: false

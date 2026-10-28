@@ -4,8 +4,7 @@ import qs.modules.common.widgets
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import Qt5Compat.GraphicalEffects
-import Qt.labs.synchronizer
+import Quickshell.Widgets
 
 Item {
     id: root
@@ -16,38 +15,52 @@ Item {
     property bool animeEnabled: Config.options.policies.weeb !== 0
     property bool animeCloset: Config.options.policies.weeb === 2
     property bool mediaEnabled: Config.options.sidebar.media.enable
-    property var tabButtonList: [
-        ...(root.aiChatEnabled ? [{"icon": "neurology", "name": Translation.tr("Intelligence")}] : []),
-        ...(root.mediaEnabled ? [{"icon": "music_note", "name": Translation.tr("Media")}] : []),
-        ...((root.animeEnabled && !root.animeCloset) ? [{"icon": "bookmark_heart", "name": Translation.tr("Anime")}] : [])
+
+    readonly property var featurePages: [
+        ...(root.aiChatEnabled ? [{"key": "ai", "icon": "neurology", "name": Translation.tr("Intelligence")}] : []),
+        ...(root.mediaEnabled ? [{"key": "media", "icon": "music_note", "name": Translation.tr("Media")}] : []),
+        ...((root.animeEnabled && !root.animeCloset) ? [{"key": "anime", "icon": "bookmark_heart", "name": Translation.tr("Anime")}] : [])
     ]
-    property int tabCount: swipeView.count
+    readonly property var pageKeys: ["home", ...root.featurePages.map(page => page.key)]
+    property string currentKey: "home"
+    readonly property int currentIndex: Math.max(0, root.pageKeys.indexOf(root.currentKey))
+    readonly property var currentPage: root.featurePages.find(page => page.key === root.currentKey) ?? null
     property bool restored: false
 
-    function restoreTab() {
-        const saved = Persistent.states.sidebar.leftTab;
-        const idx = root.tabButtonList.findIndex(t => t.icon === saved);
-        if (idx >= 0 && idx < swipeView.count) {
-            swipeView.setCurrentIndex(idx);
-            verticalTabBar.currentIndex = idx;
-        }
-        root.restored = true;
+    function goTo(key) {
+        if (root.pageKeys.indexOf(key) < 0) key = "home"
+        root.currentKey = key
+        if (Config.options.sidebar.leftRememberPage) Config.options.sidebar.leftLastPage = key
     }
 
-    Component.onCompleted: Qt.callLater(root.restoreTab)
+    function step(delta) {
+        const next = (root.currentIndex + delta + root.pageKeys.length) % root.pageKeys.length
+        root.goTo(root.pageKeys[next])
+    }
 
     function focusActiveItem() {
-        swipeView.currentItem.forceActiveFocus()
+        const slot = pageStack.children.find(child => child.current === true)
+        slot?.item?.forceActiveFocus()
+    }
+
+    Component.onCompleted: {
+        const saved = Config.options.sidebar.leftLastPage
+        if (Config.options.sidebar.leftRememberPage && root.pageKeys.indexOf(saved) >= 0) root.currentKey = saved
+        root.restored = true
+    }
+
+    onPageKeysChanged: {
+        if (root.restored && root.pageKeys.indexOf(root.currentKey) < 0) root.currentKey = "home"
     }
 
     Keys.onPressed: (event) => {
         if (event.modifiers === Qt.ControlModifier) {
             if (event.key === Qt.Key_PageDown) {
-                swipeView.incrementCurrentIndex()
+                root.step(1)
                 event.accepted = true;
             }
             else if (event.key === Qt.Key_PageUp) {
-                swipeView.decrementCurrentIndex()
+                root.step(-1)
                 event.accepted = true;
             }
         }
@@ -58,60 +71,138 @@ Item {
             fill: parent
             margins: sidebarPadding
         }
-        spacing: verticalTabBar.expanded ? -2 : 0
+        spacing: 6
 
-        VerticalTabBar {
-            id: verticalTabBar
-            visible: tabButtonList.length > 0
+        RowLayout {
             Layout.fillWidth: true
-            tabButtonList: root.tabButtonList
-            currentIndex: swipeView.currentIndex
-            onCurrentIndexChanged: swipeView.currentIndex = currentIndex
-        }
+            Layout.preferredHeight: 40
+            visible: root.currentKey !== "home"
+            spacing: 8
 
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            implicitWidth: swipeView.implicitWidth
-            implicitHeight: swipeView.implicitHeight
-            topLeftRadius: 0
-            bottomLeftRadius: Appearance.rounding.normal
-            topRightRadius: 0
-            bottomRightRadius: Appearance.rounding.normal
-            color: Appearance.colors.colLayer1
-
-
-            SwipeView { // Content pages
-                id: swipeView
-                anchors.fill: parent
-                spacing: 10
-                // Remember the open tab: the sidebar content is unloaded a few seconds
-                // after closing, so without this it always reopened on the first tab.
-                onCurrentIndexChanged: {
-                    if (!root.restored) return;
-                    const tab = root.tabButtonList[currentIndex];
-                    if (tab) Persistent.states.sidebar.leftTab = tab.icon;
+            RippleButton {
+                implicitWidth: 40
+                implicitHeight: 40
+                buttonRadius: Appearance.rounding.full
+                colBackground: Appearance.colors.colSecondaryContainer
+                colBackgroundHover: Appearance.colors.colSecondaryContainerHover
+                colRipple: Appearance.colors.colSecondaryContainerActive
+                onClicked: root.goTo("home")
+                contentItem: MaterialSymbol {
+                    anchors.centerIn: parent
+                    horizontalAlignment: Text.AlignHCenter
+                    text: "arrow_back"
+                    iconSize: Appearance.font.pixelSize.larger
+                    color: Appearance.colors.colOnSecondaryContainer
                 }
+            }
 
-                clip: true
-                layer.enabled: true
-                layer.effect: OpacityMask {
-                    maskSource: Rectangle {
-                        width: swipeView.width
-                        height: swipeView.height
-                        radius: Appearance.rounding.small
+            MaterialSymbol {
+                text: root.currentPage?.icon ?? ""
+                fill: 1
+                iconSize: Appearance.font.pixelSize.huge
+                color: Appearance.colors.colPrimary
+            }
+
+            StyledText {
+                Layout.fillWidth: true
+                text: root.currentPage?.name ?? ""
+                font.pixelSize: Appearance.font.pixelSize.larger
+                font.weight: Font.DemiBold
+                color: Appearance.colors.colOnLayer0
+                elide: Text.ElideRight
+            }
+
+            Repeater {
+                model: root.featurePages.filter(page => page.key !== root.currentKey)
+                delegate: RippleButton {
+                    required property var modelData
+                    implicitWidth: 36
+                    implicitHeight: 36
+                    buttonRadius: Appearance.rounding.full
+                    onClicked: root.goTo(modelData.key)
+                    contentItem: MaterialSymbol {
+                        anchors.centerIn: parent
+                        horizontalAlignment: Text.AlignHCenter
+                        text: modelData.icon
+                        iconSize: Appearance.font.pixelSize.larger
+                        color: Appearance.colors.colSubtext
                     }
+                    StyledToolTip { text: modelData.name }
                 }
-
-                contentChildren: [
-                    ...(root.aiChatEnabled ? [aiChat.createObject()] : []),
-                    ...(root.mediaEnabled ? [media.createObject()] : []),
-                    ...((root.tabButtonList.length === 0 || (!root.aiChatEnabled && !root.mediaEnabled && root.animeCloset)) ? [placeholder.createObject()] : []),
-                    ...(root.animeEnabled ? [anime.createObject()] : []),
-                ]
             }
         }
 
+        ClippingRectangle {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            radius: Appearance.rounding.normal
+            color: Appearance.colors.colLayer1
+
+            Item { // Content pages
+                id: pageStack
+                anchors.fill: parent
+
+                component PageSlot: SidebarPop {
+                    id: slot
+                    required property string pageKey
+                    property bool enabledPage: true
+                    property Component page: null
+                    property bool lingering: false
+                    property bool visited: false
+                    readonly property bool current: root.currentKey === pageKey
+                    readonly property bool isHome: pageKey === "home"
+                    readonly property alias item: loader.item
+
+                    anchors.fill: parent
+                    active: current
+                    visible: current || lingering
+                    minScale: isHome ? 1 : 0.97
+                    travelX: 0
+                    travelY: isHome ? 0 : 20
+                    fade: !isHome
+                    animIndex: 0
+                    smooth: !isHome
+
+                    Component.onCompleted: if (current) visited = true
+
+                    onCurrentChanged: {
+                        if (current) visited = true
+                        if (!current) {
+                            lingering = true
+                            lingerTimer.restart()
+                        }
+                    }
+
+                    Timer {
+                        id: lingerTimer
+                        interval: 760
+                        onTriggered: slot.lingering = false
+                    }
+
+                    Loader {
+                        id: loader
+                        anchors.fill: parent
+                        asynchronous: !slot.isHome
+                        active: slot.enabledPage && (slot.isHome || slot.visited)
+                        sourceComponent: slot.page
+                        onLoaded: if (slot.isHome) item.active = Qt.binding(() => slot.current)
+                    }
+                }
+
+                PageSlot { pageKey: "home"; page: home }
+                PageSlot { pageKey: "ai"; enabledPage: root.aiChatEnabled; page: aiChat }
+                PageSlot { pageKey: "media"; enabledPage: root.mediaEnabled; page: media }
+                PageSlot { pageKey: "anime"; enabledPage: root.animeEnabled && !root.animeCloset; page: anime }
+            }
+        }
+
+        Component {
+            id: home
+            SidebarHomePage {
+                pages: root.featurePages
+                onPageRequested: key => root.goTo(key)
+            }
+        }
         Component {
             id: aiChat
             AiChat {}
@@ -123,16 +214,6 @@ Item {
         Component {
             id: anime
             Anime {}
-        }
-        Component {
-            id: placeholder
-            Item {
-                StyledText {
-                    anchors.centerIn: parent
-                    text: root.animeCloset ? Translation.tr("Nothing") : Translation.tr("Enjoy your empty sidebar...")
-                    color: Appearance.colors.colSubtext
-                }
-            }
         }
     }
 }
