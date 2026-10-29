@@ -270,7 +270,7 @@ MouseArea {
 
                     Toolbar {
                         anchors.centerIn: parent
-                        visible: root.source !== "blapples" && root.source !== "naive" && root.source !== "wallhaven"
+                        visible: root.source !== "blapples" && root.source !== "naive" && root.source !== "wallhaven" && root.source !== "workshop"
                         colBackground: Appearance.colors.colLayer1
                         outerShadow: true
 
@@ -314,7 +314,7 @@ MouseArea {
                         }
 
                         Loader {
-                            active: root.source !== "local" && root.source !== "blapples" && root.source !== "naive" && root.source !== "wallhaven"
+                            active: root.source !== "local" && root.source !== "blapples" && root.source !== "naive" && root.source !== "wallhaven" && root.source !== "workshop"
                             visible: active
                             sourceComponent: RowLayout {
                                 spacing: 4
@@ -387,6 +387,7 @@ MouseArea {
                             model: [
                                 { value: "local",     displayName: Translation.tr("Local") },
                                 { value: "wallhaven", displayName: Translation.tr("Wallhaven") },
+                                { value: "workshop",  displayName: Translation.tr("Steam Workshop") },
                                 { value: "blapples",  displayName: Translation.tr("Blapples") },
                                 { value: "naive",     displayName: Translation.tr("NA-ive") },
                                 { value: "unsplash",  displayName: Translation.tr("Unsplash") },
@@ -438,6 +439,7 @@ MouseArea {
                         anchors.fill: parent
                         sourceComponent: root.source === "local" ? localGridComponent
                             : root.source === "wallhaven" ? wallhavenGridComponent
+                            : root.source === "workshop" ? workshopGridComponent
                             : onlineGridComponent
                     }
 
@@ -447,6 +449,19 @@ MouseArea {
                             columns: root.columns
                             previewCellAspectRatio: root.previewCellAspectRatio
                             onWallpaperSelected: path => root.selectWallpaperPath(path)
+                        }
+                    }
+
+                    Component {
+                        id: workshopGridComponent
+                        WorkshopGrid {
+                            columns: root.columns
+                            previewCellAspectRatio: root.previewCellAspectRatio
+                            useDarkMode: root.useDarkMode
+                            onWallpaperApplied: {
+                                if (Config.options.wallpaperSelector.closeAfterSelection)
+                                    GlobalStates.wallpaperSelectorOpen = false;
+                            }
                         }
                     }
 
@@ -690,7 +705,7 @@ MouseArea {
                         }
 
                         Loader {
-                            active: root.source !== "local" && root.source !== "wallhaven"
+                            active: root.source !== "local" && root.source !== "wallhaven" && root.source !== "workshop"
                             visible: active
                             sourceComponent: Toolbar {
                                 ToolbarTextField {
@@ -724,6 +739,143 @@ MouseArea {
                                     implicitWidth: height
                                     text: "refresh"
                                     onClicked: OnlineWallpapers.fetch()
+                                }
+                            }
+                        }
+
+                        Loader {
+                            active: root.source === "workshop"
+                            visible: active
+                            sourceComponent: Toolbar {
+                                id: workshopToolbar
+
+                                readonly property var sorts: [
+                                    { value: "trend",   icon: "trending_up", label: Translation.tr("Trending") },
+                                    { value: "recent",  icon: "schedule",    label: Translation.tr("Most recent") },
+                                    { value: "popular", icon: "star",        label: Translation.tr("Most subscribed") },
+                                    { value: "updated", icon: "update",      label: Translation.tr("Recently updated") }
+                                ]
+                                readonly property var currentSort: sorts.find(x => x.value === WorkshopWallpapers.sort) ?? sorts[0]
+                                readonly property bool online: WorkshopWallpapers.mode === "online"
+
+                                Timer {
+                                    id: workshopDebounce
+                                    interval: 600
+                                    onTriggered: WorkshopWallpapers.search(workshopSearchField.text)
+                                }
+
+                                // Online / Installed
+                                IconToolbarButton {
+                                    implicitWidth: height
+                                    text: "cloud"
+                                    toggled: workshopToolbar.online
+                                    onClicked: if (!workshopToolbar.online) WorkshopWallpapers.setMode("online")
+                                    StyledToolTip { text: Translation.tr("Browse the Workshop online") }
+                                }
+                                IconToolbarButton {
+                                    implicitWidth: height
+                                    text: "download_done"
+                                    toggled: !workshopToolbar.online
+                                    onClicked: if (workshopToolbar.online) WorkshopWallpapers.setMode("installed")
+                                    StyledToolTip { text: Translation.tr("Already downloaded by Steam") }
+                                }
+
+                                ToolbarTextField {
+                                    id: workshopSearchField
+                                    visible: workshopToolbar.online
+                                    Layout.preferredWidth: 200
+                                    placeholderText: Translation.tr("Search the Workshop...")
+                                    Component.onCompleted: root.activeFilterField = workshopSearchField
+                                    Component.onDestruction: if (root.activeFilterField === workshopSearchField) root.activeFilterField = null
+                                    onTextChanged: if (activeFocus) workshopDebounce.restart()
+                                    onAccepted: { workshopDebounce.stop(); WorkshopWallpapers.search(text) }
+                                    onActiveFocusChanged: root.filterFieldFocused = activeFocus
+                                    Keys.onPressed: event => {
+                                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                                            event.accepted = true
+                                            workshopDebounce.stop()
+                                            WorkshopWallpapers.search(text)
+                                            return
+                                        }
+                                        event.accepted = false
+                                    }
+                                }
+
+                                RowLayout {
+                                    visible: workshopToolbar.online && WorkshopWallpapers.results.length > 0
+                                    spacing: 4
+                                    IconToolbarButton {
+                                        implicitWidth: height
+                                        enabled: !WorkshopWallpapers.fetching && WorkshopWallpapers.page > 1
+                                        text: "chevron_left"
+                                        onClicked: WorkshopWallpapers.previousPage()
+                                    }
+                                    StyledText {
+                                        text: WorkshopWallpapers.page + " / " + WorkshopWallpapers.totalPages
+                                        font.pixelSize: Appearance.font.pixelSize.small
+                                        color: Appearance.colors.colOnLayer1
+                                    }
+                                    IconToolbarButton {
+                                        implicitWidth: height
+                                        enabled: !WorkshopWallpapers.fetching && WorkshopWallpapers.page < WorkshopWallpapers.totalPages
+                                        text: "chevron_right"
+                                        onClicked: WorkshopWallpapers.nextPage()
+                                    }
+                                }
+
+                                // Sort (click to cycle)
+                                IconToolbarButton {
+                                    visible: workshopToolbar.online
+                                    implicitWidth: height
+                                    text: workshopToolbar.currentSort.icon
+                                    onClicked: {
+                                        const i = workshopToolbar.sorts.findIndex(x => x.value === WorkshopWallpapers.sort)
+                                        WorkshopWallpapers.setSort(workshopToolbar.sorts[(i + 1) % workshopToolbar.sorts.length].value)
+                                    }
+                                    StyledToolTip {
+                                        text: Translation.tr("Sort: %1 (click to change)").arg(workshopToolbar.currentSort.label)
+                                    }
+                                }
+
+                                // Anime only
+                                IconToolbarButton {
+                                    visible: workshopToolbar.online
+                                    implicitWidth: height
+                                    text: "face_3"
+                                    toggled: WorkshopWallpapers.tag === "Anime"
+                                    onClicked: WorkshopWallpapers.setTag(WorkshopWallpapers.tag === "Anime" ? "" : "Anime")
+                                    StyledToolTip {
+                                        text: WorkshopWallpapers.tag === "Anime" ? Translation.tr("Anime only: on") : Translation.tr("Anime only: off")
+                                    }
+                                }
+
+                                // Mature content filter (NSFW)
+                                IconToolbarButton {
+                                    implicitWidth: height
+                                    text: "18_up_rating"
+                                    toggled: WorkshopWallpapers.mature
+                                    onClicked: WorkshopWallpapers.setMature(!WorkshopWallpapers.mature)
+                                    StyledToolTip {
+                                        text: WorkshopWallpapers.mature
+                                            ? Translation.tr("Mature content: shown (click to hide)")
+                                            : Translation.tr("Mature content: hidden (click to show)")
+                                    }
+                                }
+
+                                IconToolbarButton {
+                                    implicitWidth: height
+                                    text: root.useDarkMode ? "dark_mode" : "light_mode"
+                                    onClicked: root.useDarkMode = !root.useDarkMode
+                                    StyledToolTip {
+                                        text: Translation.tr("Toggle light/dark mode for applied wallpaper")
+                                    }
+                                }
+
+                                IconToolbarButton {
+                                    implicitWidth: height
+                                    text: "refresh"
+                                    onClicked: { WorkshopWallpapers.refreshInstalled(); WorkshopWallpapers.refresh() }
+                                    StyledToolTip { text: Translation.tr("Refresh") }
                                 }
                             }
                         }

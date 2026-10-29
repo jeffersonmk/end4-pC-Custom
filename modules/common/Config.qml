@@ -1012,6 +1012,11 @@ Singleton {
                 property string wallhavenOrder: "desc"
                 property string wallhavenRatios: ""
                 property string wallhavenColors: ""
+                property bool workshopMature: false // Wallpaper Engine Workshop: show Questionable/Mature items (off = Everyone only)
+                property string workshopMode: "online" // "online" | "installed"
+                property string workshopSort: "trend" // trend | recent | popular | updated
+                property int workshopDays: 7 // trend window in days
+                property string workshopTag: "" // genre tag, e.g. Anime
                 property string wallhavenQuery: ""
                 property string wallhavenTopRange: "1y"
             }
