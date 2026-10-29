@@ -24,6 +24,7 @@ Customized and maintained by **[@jeffersonmk](https://github.com/jeffersonmk)**
 | 🎮 **Gamepad support** | *Settings › Services › Gamepad*: press a controller button (default: the Xbox / PS / Nintendo *home* button) to open the widget overlay, the same as `Super + G`, or any other panel you pick. While the overlay is open you can **drive it with the controller**: d-pad / left stick moves a focus ring between every button, tab (e.g. Output/Input, CPU/RAM/Swap) and slider, the bottom button (A / ✕ / B) selects, left/right changes a focused slider (e.g. an app's volume), the right button (B / ○ / A) or Start closes it and the bumpers change the system volume. While it's open the controller works **only in the overlay** (buttons, sticks, touchpad and motion sensors are taken from the game/app behind it until you close it), and the focused game can be **paused** until you close it: separate switches for Xbox/standard controllers and for PlayStation/Nintendo ones (on by default, since emulators and Steam read those directly). A hint bar shows your controller's **brand logo** (Xbox, PlayStation or Nintendo) and its button labels. Works with USB and Bluetooth controllers plugged in at any time; outside the overlay games receive every button as usual. Off by default; needs `python-evdev` (`sudo pacman -S python-evdev`). |
 | 🔍 **Search inside Settings** | A **Search** button in the Settings sidebar (or `Ctrl + F`) finds any page, section or option by keyword and jumps straight to it. |
 | 📐 **Roomier Settings panel** | Bigger, better-proportioned window; nothing is cut off at the bottom of the sidebar. |
+| 🔐 **Login screen (SDDM)** | *Settings › Login screen*: restyle the [sddm-theme-corners](https://github.com/aczw/sddm-theme-corners) login screen from the shell. Pick the **current wallpaper** or any other image as the background, **generate the colors from your wallpaper palette** (login button, fields, popups, session/power buttons, date and time), and choose the features: user photo, show password, 24-hour clock, corner radius, login button text. Nothing changes until you press **Apply to SDDM**. Needs a one-time setup, see [Login screen (SDDM)](#-login-screen-sddm-optional). |
 | 🧹 **Features removed** | The left-sidebar *Translator* tab, the *Screen Translator* (`Super + Shift + T`), **Google Lens** (image search button), **music recognition** (SongRec button), the Gemini clock auto-styling and the Gemini *translation generator* (welcome screen and *Settings › General › Language*) were removed. The **Dashboard** style of the Settings panel and the **Football** sidebar page (sports betting parlays) are not included either. `Super + Shift + T` can open the System tab instead (see below). |
 | 🖥️ **Local-only AI chat** | The *Intelligence* sidebar only talks to models running on your machine (Ollama, vLLM, or any OpenAI-compatible server on `localhost`). Online models, API keys and the `/key` command were removed. |
 | 🎨 **Clock presets** | *Settings › Desktop › Cookie clock settings › Clock preset*: choose a visual style for the cookie clock — None (manual), Abstract, Anime, City/Space, Minimalist, Landscape, Plants, Person. No AI or API key needed. |
@@ -142,6 +143,30 @@ To open the cheat sheet straight on the **System** tab (hardware, usage, tempera
 hl.unbind("SUPER + SHIFT + T") -- free the old screen translator bind
 hl.bind("SUPER + SHIFT + T", hl.dsp.global("quickshell:systemInfoToggle"), {description = "Utilities: System info and temperatures"})
 ```
+
+### 🔐 Login screen (SDDM) (optional)
+
+Requires SDDM with the `corners` theme installed (`paru -S sddm-theme-corners-git`) and selected (`Current=corners` in `/etc/sddm.conf` or `/etc/sddm.conf.d/`).
+
+**Install** (once; asks for your password):
+
+```bash
+bash ~/.config/quickshell/end4-pC-Custom/scripts/sddm/install.sh
+```
+
+This copies a small helper to `/usr/local/bin/sddm-corners-apply` (owned by root) and adds a sudoers rule that lets your user run **only that file** without a password. The helper accepts only known theme keys, `#rrggbb` colors and a PNG/JPG/WEBP image from your home folder; it copies the image into the theme's `backgrounds/` folder and rewrites `theme.conf` (the original is saved once as `theme.conf.orig`).
+
+**Use:** open *Settings › Login screen*, choose the image and options, press **Apply to SDDM**. Log out to see the result (the lock screen is not affected). Live/video wallpapers cannot be used; pick a still image.
+
+**Update:** *Update Dots* / `git pull` updates the page and scripts. If `scripts/sddm/sddm-corners-apply` changed, run `install.sh` again.
+
+**Uninstall:**
+
+```bash
+bash ~/.config/quickshell/end4-pC-Custom/scripts/sddm/uninstall.sh
+```
+
+This removes the helper and the sudoers rule. To also restore the original look: `sudo cp /usr/share/sddm/themes/corners/theme.conf.orig /usr/share/sddm/themes/corners/theme.conf`.
 
 ### 🔄 Updating
 
