@@ -215,13 +215,53 @@ ContentPage {
                 }
             }
 
-            StyledText {
+            Rectangle {
                 Layout.fillWidth: true
                 visible: page.needsInstall
-                wrapMode: Text.Wrap
-                textFormat: Text.PlainText
-                color: Appearance.colors.colSubtext
-                text: Translation.tr("One-time setup (asks your password once):") + "\n    bash " + page.installPath
+                implicitHeight: setupCol.implicitHeight + 24
+                radius: Appearance.rounding.normal
+                color: Appearance.colors.colLayer2
+
+                ColumnLayout {
+                    id: setupCol
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
+                    spacing: 8
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        font.weight: Font.Medium
+                        color: Appearance.colors.colOnLayer2
+                        text: Translation.tr("One-time setup needed")
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        color: Appearance.colors.colSubtext
+                        text: Translation.tr("1. Press \"Copy command\" and paste it in a terminal (Ctrl+Shift+V).\n2. The script explains what it does and asks to continue (y/s + Enter).\n3. It asks for YOUR user password (the sudo one). Nothing shows while typing - that's normal. Type it and press Enter.\n4. When it says \"Done\", come back here and press Apply again.")
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WrapAnywhere
+                        textFormat: Text.PlainText
+                        font.family: Appearance.font.family.monospace
+                        color: Appearance.colors.colOnLayer2
+                        text: "bash '" + page.installPath + "'"
+                    }
+                    RippleButton {
+                        implicitWidth: copyLabel.implicitWidth + 32
+                        implicitHeight: 36
+                        buttonRadius: Appearance.rounding.full
+                        onClicked: Quickshell.clipboardText = "bash '" + page.installPath + "'"
+                        contentItem: Item {
+                            StyledText {
+                                id: copyLabel
+                                anchors.centerIn: parent
+                                text: Translation.tr("Copy command")
+                                color: Appearance.colors.colOnLayer1
+                            }
+                        }
+                    }
+                }
             }
         }
     }
