@@ -1468,6 +1468,15 @@ ContentPage {
                         }
                     }
                 } 
+                ConfigSwitch {
+                    Layout.fillWidth: true
+                    buttonIcon: "cloud_download"
+                    text: Translation.tr("Steam Workshop: download through Steam (Download all button)")
+                    checked: Config.options.wallpaperSelector.workshopSteamDownload
+                    onClicked: {
+                        Config.options.wallpaperSelector.workshopSteamDownload = !Config.options.wallpaperSelector.workshopSteamDownload;
+                    }
+                }
             }
         }
 

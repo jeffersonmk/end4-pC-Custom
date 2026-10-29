@@ -41,6 +41,49 @@ SORTS = {
 VIDEO_EXT = (".mp4", ".webm", ".mkv", ".mov", ".avi")
 
 
+def scene_player():
+    """Scenes play through linux-wallpaperengine (AUR: linux-wallpaperengine-git)."""
+    return shutil.which("linux-wallpaperengine") is not None
+
+
+def steamworks_ready():
+    """steam_download.py's verified Steamworks library is in place."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    sys.dont_write_bytecode = True  # no __pycache__ inside the shell's folder
+    try:
+        import steam_download
+        return steam_download.lib_ok()
+    except Exception:
+        return False
+    finally:
+        sys.path.pop(0)
+
+
+_failed_scenes = None
+
+
+def scene_failed(project_dir):
+    """Scenes linux-wallpaperengine could not render (written by scene_wallpaper.sh)."""
+    global _failed_scenes
+    if _failed_scenes is None:
+        path = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")), "quickshell", "scene-failed.txt")
+        try:
+            with open(path, encoding="utf-8") as f:
+                _failed_scenes = {line.strip() for line in f if line.strip()}
+        except OSError:
+            _failed_scenes = set()
+    return project_dir in _failed_scenes
+
+
+def playable(kind, fname, fpath, project):
+    if kind == "video":
+        return fname.lower().endswith(VIDEO_EXT) and os.path.isfile(fpath)
+    if kind == "scene":
+        # The scene file itself (scene.pkg or scene.json) is read by linux-wallpaperengine
+        return scene_player() and os.path.isfile(project) and not scene_failed(os.path.dirname(project))
+    return False
+
+
 def out(obj, code=0) -> NoReturn:
     json.dump(obj, sys.stdout, ensure_ascii=False)
     sys.stdout.write("\n")
@@ -73,7 +116,7 @@ def item_from_steam(raw):
         "tags": genre[:6],
         "size": size,
         "subscriptions": int(raw.get("lifetime_subscriptions") or raw.get("subscriptions") or 0),
-        "type": "video" if "Video" in tags else ("scene" if "Scene" in tags else ""),
+        "type": next((k.lower() for k in ("Video", "Scene", "Web", "Application") if k in tags), ""),
     }
 
 
@@ -114,7 +157,9 @@ def cmd_browse(a):
         params += [("browsesort", "textsearch"), ("searchtext", query)]
     else:
         params += [("browsesort", SORTS.get(a.sort, "trend")), ("days", a.days)]
-    required = ["Video"]
+    # Steam's tag filter is AND-only, so "all" asks without a type tag and drops
+    # what cannot be played (Web, Application) below.
+    required = {"video": ["Video"], "scene": ["Scene"]}.get(a.kind, [])
     if a.tag:
         required.append(a.tag)
     if not a.mature:
@@ -134,7 +179,8 @@ def cmd_browse(a):
     # Belt and braces: the tag filter should already do this, a text search may not.
     if not a.mature:
         res["items"] = [i for i in res["items"] if i["rating"] in ("Everyone", "")]
-    res["items"] = [i for i in res["items"] if i["type"] in ("video", "")]
+    playable = ("video", "scene") if a.kind == "all" else (a.kind,)
+    res["items"] = [i for i in res["items"] if i["type"] in playable + ("",)]
     res["ok"] = True
     out(res)
 
@@ -287,8 +333,9 @@ def local_item(base, wid, origin="workshop", item_id=None):
         "origin": origin,
         "title": str(p.get("title", "")) or wid,
         "type": kind or "unknown",
-        "supported": kind == "video" and fname.lower().endswith(VIDEO_EXT) and os.path.isfile(fpath),
-        "file": fpath if kind == "video" and os.path.isfile(fpath) else "",
+        "supported": playable(kind, fname, fpath, pj),
+        "failed": kind == "scene" and scene_failed(d),
+        "file": fpath if kind == "video" and os.path.isfile(fpath) else (pj if kind == "scene" and not scene_failed(d) else ""),
         "preview": prev_path if prev and os.path.isfile(prev_path) else "",
         "rating": rating,
         "tags": [t for t in tags if t not in RATINGS and t != "Approved"][:6],
@@ -405,7 +452,7 @@ def cmd_library(a):
             "origin": "workshop",
             "title": d.get("title") or wid,
             "type": d.get("type") or "unknown",
-            "supported": d.get("type") == "video",
+            "supported": d.get("type") == "video" or (d.get("type") == "scene" and scene_player()),
             "file": "",
             "preview": d.get("preview", ""),
             "rating": d.get("rating", ""),
@@ -486,6 +533,8 @@ def cmd_requirements(_a):
     roots = steam_roots()
     manifests = [r for r in roots if os.path.isfile(os.path.join(r, "steamapps", f"appmanifest_{APPID}.acf"))]
     wdirs = workshop_dirs()
+    # linux-wallpaperengine reads the shaders/models of the Wallpaper Engine install
+    we_assets = any(os.path.isdir(os.path.join(r, "steamapps", "common", "wallpaper_engine", "assets")) for r in roots)
     try:
         urllib.request.urlopen(urllib.request.Request("https://steamcommunity.com/", headers={"User-Agent": UA}), timeout=6)
         net = True
@@ -493,15 +542,21 @@ def cmd_requirements(_a):
         net = False
     checks = [
         ("steam", "Steam is installed", bool(roots), "required",
-         "Install Steam (sudo -S -p '' pacman -S steam) and sign in once."),
+         "Install Steam (sudo pacman -S steam) and sign in once."),
         ("we", "Wallpaper Engine is installed in Steam", bool(manifests), "recommended",
-         "Install Wallpaper Engine from your Steam library (you can leave it closed). Steam may not download its Workshop items otherwise."),
+         "Install Wallpaper Engine from your Steam library (you can leave it closed). Scene wallpapers need its files, and Steam may not download its Workshop items otherwise."),
         ("running", "Steam is running", steam_running(), "recommended",
-         "Open Steam: it does the downloading when you subscribe."),
+         "Open Steam and sign in: it does the downloading (when you subscribe, and for Download all)."),
         ("workshop", "Workshop folder exists (something was downloaded)", bool(wdirs), "recommended",
          "It appears after Steam downloads your first Wallpaper Engine Workshop item."),
         ("mpvpaper", "mpvpaper (plays video wallpapers)", shutil.which("mpvpaper") is not None, "required",
          "sudo pacman -S mpvpaper  (or yay -S mpvpaper)"),
+        ("scene", "linux-wallpaperengine (plays Scene wallpapers)", scene_player() and we_assets, "recommended",
+         ("paru -S linux-wallpaperengine-git  (or yay -S ...). Without it only Video wallpapers can be applied."
+          if not scene_player() else
+          "linux-wallpaperengine is installed but the Wallpaper Engine assets folder was not found: install Wallpaper Engine in Steam.")),
+        ("steamworks", "Steam download helper (Download all button)", steamworks_ready(), "recommended",
+         "Installed on the first use of Download all (after you confirm). Steam must be open and signed in."),
         ("ffmpeg", "ffmpeg (makes the thumbnails and colors)", shutil.which("ffmpeg") is not None, "required",
          "sudo pacman -S ffmpeg"),
         ("xdg-open", "xdg-open (opens Steam links)", shutil.which("xdg-open") is not None, "required",
@@ -513,7 +568,7 @@ def cmd_requirements(_a):
         "ok": True,
         "checks": [{"id": i, "label": l, "ok": ok, "level": lv, "hint": h} for i, l, ok, lv, h in checks],
         "requiredFailing": sum(1 for _i, _l, ok, lv, _h in checks if not ok and lv == "required"),
-        "videoOnly": True,
+        "videoOnly": not scene_player(),
     })
 
 
@@ -527,6 +582,7 @@ def main():
     b.add_argument("--page", type=int, default=1)
     b.add_argument("--tag", default="")
     b.add_argument("--mature", action="store_true")
+    b.add_argument("--kind", choices=("video", "scene", "all"), default="video")
     b.set_defaults(fn=cmd_browse)
     lib = sub.add_parser("library")
     lib.add_argument("--mature", action="store_true")

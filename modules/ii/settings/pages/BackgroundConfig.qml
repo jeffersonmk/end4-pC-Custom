@@ -5,6 +5,7 @@ import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
+import Quickshell
 import Quickshell.Hyprland
 
 
@@ -13,7 +14,7 @@ ContentPage {
     forceWidth: true
 
     function displayPathFor(path) {
-        return /\.(mp4|webm|mkv|avi|mov)$/i.test(path)
+        return /(\.(mp4|webm|mkv|avi|mov)|\/project\.json)$/i.test(path)
             ? Config.options.background.thumbnailPath
             : path
     }
@@ -323,6 +324,41 @@ ContentPage {
                             Config.options.background.liveWallpaper.pauseBelowPercent = value;
                         }
                     }
+                    ConfigSpinBox {
+                        id: sceneFpsSpin
+                        Layout.fillWidth: true
+                        icon: "speed"
+                        text: Translation.tr("Scene wallpapers: FPS limit")
+                        from: 5
+                        to: 144
+                        stepSize: 5
+                        onValueModified: {
+                            Config.options.background.liveWallpaper.sceneFps = value;
+                            sceneRestartTimer.restart();
+                        }
+                        Binding {
+                            target: sceneFpsSpin
+                            property: "value"
+                            value: Config.options.background.liveWallpaper.sceneFps
+                        }
+                    }
+                    ConfigSwitch {
+                        Layout.fillWidth: true
+                        buttonIcon: "volume_up"
+                        text: Translation.tr("Scene wallpapers: play sound")
+                        checked: Config.options.background.liveWallpaper.sceneAudio
+                        onClicked: {
+                            Config.options.background.liveWallpaper.sceneAudio = !Config.options.background.liveWallpaper.sceneAudio;
+                            sceneRestartTimer.restart();
+                        }
+                    }
+                }
+
+                // Apply FPS/sound changes to a running scene (after the config is written)
+                Timer {
+                    id: sceneRestartTimer
+                    interval: 1200
+                    onTriggered: Quickshell.execDetached([Directories.sceneWallpaperScriptPath, "restart"])
                 }
             }
 

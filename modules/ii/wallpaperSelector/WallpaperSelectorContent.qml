@@ -840,6 +840,27 @@ MouseArea {
                                     }
                                 }
 
+                                // Wallpaper type (click to cycle): Video / Scene / both
+                                IconToolbarButton {
+                                    id: kindButton
+                                    readonly property var kinds: [
+                                        { value: "video", icon: "movie", label: Translation.tr("Video") },
+                                        { value: "scene", icon: "landscape", label: Translation.tr("Scene") },
+                                        { value: "all", icon: "category", label: Translation.tr("Video and Scene") }
+                                    ]
+                                    readonly property var current: kinds.find(k => k.value === WorkshopWallpapers.kind) ?? kinds[0]
+                                    visible: workshopToolbar.online
+                                    implicitWidth: height
+                                    text: current.icon
+                                    onClicked: {
+                                        const i = kinds.findIndex(k => k.value === WorkshopWallpapers.kind)
+                                        WorkshopWallpapers.setKind(kinds[(i + 1) % kinds.length].value)
+                                    }
+                                    StyledToolTip {
+                                        text: Translation.tr("Type: %1 (click to change)").arg(kindButton.current.label)
+                                    }
+                                }
+
                                 // Anime only
                                 IconToolbarButton {
                                     visible: workshopToolbar.online

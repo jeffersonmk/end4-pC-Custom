@@ -113,7 +113,7 @@ ContentPage {
                         sourceSize.width: isMinimal ? 600 : 420
                         sourceSize.height: isMinimal ? 400 : 280
                         fillMode: Image.PreserveAspectCrop
-                        source: /\.(mp4|webm|mkv|avi|mov)$/i.test(Config.options.background.wallpaperPath)
+                        source: /(\.(mp4|webm|mkv|avi|mov)|\/project\.json)$/i.test(Config.options.background.wallpaperPath)
                             ? Config.options.background.thumbnailPath
                             : Config.options.background.wallpaperPath
                         cache: false

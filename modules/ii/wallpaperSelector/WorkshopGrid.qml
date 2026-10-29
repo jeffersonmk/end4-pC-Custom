@@ -23,6 +23,13 @@ Item {
 
     property bool showRequirements: false
     property var pendingDelete: null   // { ids, title, bytes, single, includesCurrent }
+    property var pendingSteamConsent: null   // { ids } waiting for the user to enable Steam downloads
+
+    // Download subscribed items through Steam ([] = every missing one); asks once before the first use
+    function requestDownload(ids) {
+        if (WorkshopWallpapers.steamDownloadEnabled) WorkshopWallpapers.download(ids)
+        else root.pendingSteamConsent = { ids: ids }
+    }
 
     signal wallpaperApplied()
 
@@ -48,8 +55,14 @@ Item {
         if (info && info.downloaded && info.file && info.file.length > 0) {
             Wallpapers.apply(info.file, root.useDarkMode)
             root.wallpaperApplied()
+        } else if (info && info.downloaded && (item.failed ?? false)) {
+            WorkshopWallpapers.say(Translation.tr("linux-wallpaperengine could not run this Scene (3D scenes are not supported yet)"))
         } else if (info && info.downloaded) {
-            WorkshopWallpapers.say(Translation.tr("Only video wallpapers can be used here (Scene and Web are not supported)"))
+            WorkshopWallpapers.say(WorkshopWallpapers.scenePlayable
+                ? Translation.tr("Only Video and Scene wallpapers can be used here (Web and Application are not supported)")
+                : Translation.tr("Only video wallpapers can be used here. Install linux-wallpaperengine to use Scene ones (see Requirements)"))
+        } else if (info && info.subscribed && (info.origin ?? "workshop") === "workshop") {
+            root.requestDownload([item.id])
         } else {
             WorkshopWallpapers.subscribe(item)
         }
@@ -134,6 +147,81 @@ Item {
                 text: Translation.tr("%1 on disk").arg(WorkshopWallpapers.formatBytes(WorkshopWallpapers.downloadedBytes))
                 font.pixelSize: Appearance.font.pixelSize.smaller
                 color: Appearance.colors.colSubtext
+            }
+
+            // Download progress (Steam client)
+            RowLayout {
+                visible: WorkshopWallpapers.downloading || WorkshopWallpapers.preparingDownload
+                spacing: 8
+                StyledText {
+                    text: WorkshopWallpapers.preparingDownload
+                        ? Translation.tr("Preparing...")
+                        : Translation.tr("Downloading %1/%2").arg(WorkshopWallpapers.downloadDone).arg(WorkshopWallpapers.downloadTotal)
+                            + (WorkshopWallpapers.downloadTotalBytes > 0
+                                ? "  ·  " + WorkshopWallpapers.formatBytes(WorkshopWallpapers.downloadBytes) + " / " + WorkshopWallpapers.formatBytes(WorkshopWallpapers.downloadTotalBytes)
+                                : "")
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    color: Appearance.colors.colOnLayer1
+                }
+                Rectangle {
+                    implicitWidth: 140
+                    implicitHeight: 6
+                    radius: 3
+                    color: Appearance.colors.colSecondaryContainer
+                    Rectangle {
+                        height: parent.height
+                        radius: 3
+                        color: Appearance.colors.colPrimary
+                        width: {
+                            const total = WorkshopWallpapers.downloadTotal
+                            if (total <= 0) return 0
+                            const part = WorkshopWallpapers.downloadTotalBytes > 0 ? WorkshopWallpapers.downloadBytes / WorkshopWallpapers.downloadTotalBytes : 0
+                            return parent.width * Math.min(1, (WorkshopWallpapers.downloadDone + part * (total - WorkshopWallpapers.downloadDone)) / total)
+                        }
+                        Behavior on width { NumberAnimation { duration: 300 } }
+                    }
+                }
+                RippleButton {
+                    visible: WorkshopWallpapers.downloading
+                    implicitHeight: 32
+                    leftPadding: 12
+                    rightPadding: 12
+                    buttonRadius: height / 2
+                    colBackground: Appearance.colors.colLayer1
+                    onClicked: WorkshopWallpapers.cancelDownload()
+                    contentItem: StyledText {
+                        text: Translation.tr("Cancel")
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        color: Appearance.colors.colOnLayer1
+                    }
+                }
+            }
+
+            RippleButton {
+                id: downloadAllBtn
+                visible: WorkshopWallpapers.missingItems.length > 0 && !WorkshopWallpapers.downloading && !WorkshopWallpapers.preparingDownload
+                implicitHeight: 32
+                leftPadding: 12
+                rightPadding: 14
+                buttonRadius: height / 2
+                colBackground: Appearance.colors.colLayer1
+                onClicked: root.requestDownload([])
+                contentItem: Row {
+                    spacing: 6
+                    MaterialSymbol {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "cloud_download"
+                        iconSize: 18
+                        color: Appearance.colors.colPrimary
+                    }
+                    StyledText {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Translation.tr("Download all (%1)").arg(WorkshopWallpapers.missingItems.length)
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        color: Appearance.colors.colPrimary
+                    }
+                }
+                StyledToolTip { text: Translation.tr("Ask Steam to download every subscribed wallpaper that is not on this PC") }
             }
 
             RippleButton {
@@ -400,7 +488,7 @@ Item {
                 readonly property string origin: modelData.origin ?? info?.origin ?? "workshop"
                 readonly property bool downloaded: info?.downloaded ?? false
                 readonly property bool subscribed: info?.subscribed ?? false
-                readonly property bool supported: root.libraryMode ? modelData.supported : true
+                readonly property bool supported: root.libraryMode ? (modelData.supported ?? false) : true
                 readonly property bool adult: modelData.rating === "Mature" || modelData.rating === "Questionable"
                 readonly property bool selected: index === grid.currentSelection
                 readonly property bool isCurrent: downloaded && (cell.origin === "workshop" ? WorkshopWallpapers.isCurrentWallpaper(info) : (info?.file ?? "") === (Config.options.background.wallpaperPath ?? "x"))
@@ -512,7 +600,8 @@ Item {
                         }
                     }
                     Rectangle {
-                        visible: root.libraryMode && !cell.supported
+                        // Type of unusable items, and "Scene" on playable scenes (they use more GPU than videos)
+                        visible: (root.libraryMode && !cell.supported) || cell.modelData.type === "scene"
                         radius: Appearance.rounding.small
                         color: Appearance.colors.colScrim
                         implicitWidth: typeText.implicitWidth + 10
@@ -521,6 +610,7 @@ Item {
                             id: typeText
                             anchors.centerIn: parent
                             text: {
+                                if (cell.modelData.failed) return Translation.tr("Scene: won't run")
                                 const t = cell.modelData.type ?? ""
                                 return t.length > 0 && t !== "unknown" ? t.charAt(0).toUpperCase() + t.slice(1) : Translation.tr("Unsupported")
                             }
@@ -646,7 +736,9 @@ Item {
                         model: {
                             const a = [{ icon: "open_in_new", tip: Translation.tr("Open the Workshop page (to unsubscribe, rate...)"), act: "page" }]
                             if (!cell.downloaded)
-                                a.push({ icon: cell.subscribed ? "cloud_download" : "add_circle", tip: cell.subscribed ? Translation.tr("Open in Steam to download") : Translation.tr("Subscribe in Steam"), act: "sub" })
+                                a.push(cell.subscribed
+                                    ? { icon: "cloud_download", tip: Translation.tr("Download through Steam"), act: "download" }
+                                    : { icon: "add_circle", tip: Translation.tr("Subscribe in Steam"), act: "sub" })
                             else
                                 a.push({ icon: "delete", tip: cell.isCurrent ? Translation.tr("Current wallpaper, change it first") : Translation.tr("Delete the downloaded files"), act: "delete" })
                             return a
@@ -673,6 +765,7 @@ Item {
                                 onClicked: {
                                     if (actionBtn.modelData.act === "page") WorkshopWallpapers.openInBrowser(cell.modelData)
                                     else if (actionBtn.modelData.act === "sub") WorkshopWallpapers.subscribe(cell.modelData)
+                                    else if (actionBtn.modelData.act === "download") root.requestDownload([cell.modelData.id])
                                     else root.askDelete(cell.modelData)
                                 }
                                 StyledToolTip {
@@ -845,9 +938,117 @@ Item {
                 StyledText {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
-                    text: Translation.tr("Only video wallpapers (mp4/webm...) can be applied. Scene, Web and Application ones are listed in the Library, dimmed, but cannot be used here.")
+                    text: WorkshopWallpapers.scenePlayable
+                        ? Translation.tr("Video and Scene wallpapers can be applied (Scene through linux-wallpaperengine; a few may render with missing effects). Web and Application ones are listed in the Library, dimmed, but cannot be used here.")
+                        : Translation.tr("Only video wallpapers (mp4/webm...) can be applied. Scene, Web and Application ones are listed in the Library, dimmed, but cannot be used here.")
                     font.pixelSize: Appearance.font.pixelSize.smaller
                     color: Appearance.colors.colSubtext
+                }
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------- first Steam download: ask once
+    Rectangle {
+        anchors.fill: parent
+        z: 111
+        visible: root.pendingSteamConsent !== null
+        color: ColorUtils.transparentize(Appearance.colors.colScrim, 0.35)
+        radius: Appearance.rounding.normal
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: root.pendingSteamConsent = null
+        }
+
+        Rectangle {
+            anchors.centerIn: parent
+            width: Math.min(560, parent.width - 48)
+            implicitHeight: consentColumn.implicitHeight + 32
+            height: implicitHeight
+            radius: Appearance.rounding.large
+            color: Appearance.colors.colLayer1Base
+
+            MouseArea { anchors.fill: parent }
+
+            ColumnLayout {
+                id: consentColumn
+                anchors {
+                    fill: parent
+                    margins: 16
+                }
+                spacing: 10
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    MaterialSymbol {
+                        text: "cloud_download"
+                        iconSize: 24
+                        color: Appearance.colors.colPrimary
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        text: Translation.tr("Download through Steam?")
+                        font.pixelSize: Appearance.font.pixelSize.larger
+                        color: Appearance.colors.colOnLayer1
+                    }
+                }
+
+                StyledText {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: Translation.tr("The shell asks your Steam client (open and signed in) to download the wallpapers you are subscribed to, the same request Wallpaper Engine makes. No password is used and no window opens. While it downloads, Steam shows you as playing Wallpaper Engine.")
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    color: Appearance.colors.colSubtext
+                }
+                StyledText {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: Translation.tr("It needs Valve's Steamworks library (libsteam_api.so, ~380 KB). It is downloaded once from the Steamworks.NET project at a fixed version, checked against a fixed checksum before every use, and kept in ~/.local/share/quickshell/steamworks. You can turn this off in Settings > Interface.")
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    color: Appearance.colors.colSubtext
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Item { Layout.fillWidth: true }
+                    RippleButton {
+                        implicitHeight: 36
+                        leftPadding: 16
+                        rightPadding: 16
+                        buttonRadius: height / 2
+                        colBackground: Appearance.colors.colLayer2
+                        onClicked: root.pendingSteamConsent = null
+                        contentItem: StyledText {
+                            text: Translation.tr("Cancel")
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            color: Appearance.colors.colOnLayer1
+                            horizontalAlignment: Text.AlignHCenter
+                        }
+                    }
+                    RippleButton {
+                        implicitHeight: 36
+                        leftPadding: 16
+                        rightPadding: 16
+                        buttonRadius: height / 2
+                        colBackground: Appearance.colors.colPrimary
+                        colBackgroundHover: Appearance.colors.colPrimaryHover
+                        onClicked: {
+                            const ids = root.pendingSteamConsent?.ids ?? []
+                            root.pendingSteamConsent = null
+                            WorkshopWallpapers.enableSteamDownload(ids)
+                        }
+                        contentItem: StyledText {
+                            text: Translation.tr("Enable and download")
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            font.weight: Font.DemiBold
+                            color: Appearance.colors.colOnPrimary
+                            horizontalAlignment: Text.AlignHCenter
+                        }
+                    }
                 }
             }
         }

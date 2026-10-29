@@ -27,6 +27,7 @@ Singleton {
     readonly property string sort: Config.options.wallpaperSelector.workshopSort   // trend | recent | popular | updated
     readonly property int days: Config.options.wallpaperSelector.workshopDays
     readonly property string tag: Config.options.wallpaperSelector.workshopTag
+    readonly property string kind: Config.options.wallpaperSelector.workshopKind ?? "video"   // video | scene | all
 
     // State
     property bool fetching: false
@@ -67,6 +68,21 @@ Singleton {
     property var requirements: []
     property int requiredFailing: 0
     property bool requirementsLoaded: false
+    // linux-wallpaperengine is installed, so Scene wallpapers can be applied
+    readonly property bool scenePlayable: root.requirements.some(r => r.id === "scene" && r.ok)
+
+    // Download through the Steam client (opt-in, scripts/workshop/steam_download.py)
+    readonly property string downloadScriptPath: FileUtils.trimFileProtocol(`${Directories.scriptPath}/workshop/steam_download.py`)
+    readonly property bool steamDownloadEnabled: Config.options.wallpaperSelector.workshopSteamDownload ?? false
+    property bool downloading: false
+    property bool preparingDownload: false   // fetching/checking the Steamworks library
+    property int downloadDone: 0
+    property int downloadTotal: 0
+    property real downloadBytes: 0
+    property real downloadTotalBytes: 0
+    property var downloadQueue: null         // ids (or ["--all"]) waiting for setup to finish
+    // Subscribed Workshop items with nothing usable on disk
+    readonly property var missingItems: root.results.filter(i => i.origin === "workshop" && i.subscribed && !i.downloaded)
 
     // Short message after deleting
     property string notice: ""
@@ -86,6 +102,7 @@ Singleton {
     function setSort(value) { Config.options.wallpaperSelector.workshopSort = value; root.query = ""; goto(1) }
     function setDays(value) { Config.options.wallpaperSelector.workshopDays = value; goto(1) }
     function setTag(value) { Config.options.wallpaperSelector.workshopTag = value; goto(1) }
+    function setKind(value) { Config.options.wallpaperSelector.workshopKind = value; goto(1) }
 
     function refresh() { goto(1) }
     function nextPage() { if (root.page < root.totalPages) goto(root.page + 1) }
@@ -109,6 +126,7 @@ Singleton {
         const args = ["browse", "--page", String(p), "--sort", root.sort, "--days", String(root.days)]
         if (root.query.length > 0) args.push("--query", root.query)
         if (root.tag.length > 0) args.push("--tag", root.tag)
+        args.push("--kind", root.kind)
         root.page = p
         run(args)
     }
@@ -159,6 +177,21 @@ Singleton {
         if (ids.length === 0 || deleteProc.running) return
         deleteProc.command = ["python3", root.scriptPath, "delete"].concat(ids)
         deleteProc.running = true
+    }
+
+    // ids: list of Workshop ids, or [] for every subscribed item that is missing
+    function download(ids) {
+        if (root.downloading || root.preparingDownload) return
+        root.downloadQueue = ids.length > 0 ? ids : ["--all"]
+        root.preparingDownload = true
+        setupProc.running = true   // no-op when the library is already there and verified
+    }
+    function enableSteamDownload(ids) {
+        Config.options.wallpaperSelector.workshopSteamDownload = true
+        root.download(ids)
+    }
+    function cancelDownload() {
+        if (downloadProc.running) downloadProc.signal(15)
     }
 
     function subscribe(item) {
@@ -252,6 +285,69 @@ Singleton {
                     root.requirementsLoaded = true
                 } catch (e) {}
             }
+        }
+    }
+
+    Process {
+        id: setupProc
+        command: ["python3", root.downloadScriptPath, "setup"]
+        stdout: StdioCollector {
+            id: setupOut
+            onStreamFinished: {
+                let d = null
+                try { d = JSON.parse(setupOut.text) } catch (e) { d = null }
+                root.preparingDownload = false
+                const queue = root.downloadQueue
+                root.downloadQueue = null
+                if (!d || !d.ok) {
+                    root.say(d?.error ?? Translation.tr("Could not prepare the Steam download helper"))
+                    return
+                }
+                if (!queue) return
+                root.downloadDone = 0
+                root.downloadTotal = 0
+                root.downloadBytes = 0
+                root.downloadTotalBytes = 0
+                root.downloading = true
+                downloadProc.command = ["python3", root.downloadScriptPath, "download"].concat(queue)
+                downloadProc.running = true
+            }
+        }
+    }
+
+    Process {
+        id: downloadProc
+        property var result: null
+        onStarted: result = null
+        stdout: SplitParser {
+            onRead: line => {
+                if (!line.startsWith("{")) return
+                let e = null
+                try { e = JSON.parse(line) } catch (err) { return }
+                if (e.event === "start") {
+                    root.downloadTotal = e.total
+                } else if (e.event === "progress") {
+                    if (e.done !== root.downloadDone) root.refreshLibraryInfo()
+                    root.downloadDone = e.done
+                    root.downloadTotal = e.total
+                    root.downloadBytes = e.bytes
+                    root.downloadTotalBytes = e.totalBytes
+                } else if (e.event === "done" || e.event === "error") {
+                    downloadProc.result = e
+                }
+            }
+        }
+        onExited: {
+            root.downloading = false
+            const e = downloadProc.result
+            if (!e) root.say(Translation.tr("The Steam download helper stopped unexpectedly"))
+            else if (e.event === "error") root.say(e.error)
+            else if (e.cancelled) root.say(Translation.tr("Download cancelled (%1 finished)").arg(e.downloaded.length))
+            else if (e.downloaded.length === 0 && e.failed.length === 0) root.say(Translation.tr("Nothing to download: every subscribed wallpaper is on disk"))
+            else root.say(Translation.tr("Downloaded %1 wallpaper(s)").arg(e.downloaded.length)
+                + (e.failed.length > 0 ? " " + Translation.tr("(%1 failed, try again later)").arg(e.failed.length) : ""))
+            root.refresh()
+            root.refreshLibraryInfo()
         }
     }
 

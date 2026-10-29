@@ -42,7 +42,7 @@ Singleton {
     function previewImage(data) {
         const background = data?.background
         const raw = background?.wallpaperPath ?? ""
-        if (/\.(mp4|webm|mkv|avi|mov)$/i.test(raw)) return background?.thumbnailPath ?? ""
+        if (/(\.(mp4|webm|mkv|avi|mov)|\/project\.json)$/i.test(raw)) return background?.thumbnailPath ?? ""
         if (background?.collage?.enable) {
             try {
                 let node = JSON.parse(background.collage.tree)

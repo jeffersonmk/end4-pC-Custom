@@ -467,6 +467,8 @@ Singleton {
                 property JsonObject liveWallpaper: JsonObject {
                     property bool pauseOnBattery: false // Pause as soon as the charger is out
                     property real pauseBelowPercent: 0 // Or only under this charge, 0 to ignore
+                    property int sceneFps: 30 // Wallpaper Engine scenes (linux-wallpaperengine)
+                    property bool sceneAudio: false
                 }
                 property list<string> screenList: [] 
                 property string wallpaperPath: ""
@@ -1017,6 +1019,8 @@ Singleton {
                 property string workshopSort: "trend" // trend | recent | popular | updated
                 property int workshopDays: 7 // trend window in days
                 property string workshopTag: "" // genre tag, e.g. Anime
+                property string workshopKind: "video" // online type: video | scene | all
+                property bool workshopSteamDownload: false // opt-in: download through the Steam client (Steamworks API, scripts/workshop/steam_download.py)
                 property string wallhavenQuery: ""
                 property string wallhavenTopRange: "1y"
             }
