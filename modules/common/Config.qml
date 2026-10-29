@@ -242,12 +242,14 @@ Singleton {
                 property bool autoColors: true // generate theme colors from the wallpaper palette
                 property bool userPicture: false // show the user's avatar above the login fields
                 property bool showPassword: false // show password characters while typing
-                property bool clock24h: true
+                property bool clock24h: false // dotfiles default: hh:mm AP
                 property string loginText: "Login"
                 property int radius: 10
                 property string fontFamily: "Atkinson Hyperlegible"
-                property int dateSize: 36
+                property int dateSize: 36 // dotfiles defaults
                 property int timeSize: 48
+                property bool dateBold: false
+                property bool timeBold: true
                 property string cDateColor: "" // "" = automatic
                 property string cTimeColor: "" // "" = automatic
                 property string cInputColor: "" // "" = automatic

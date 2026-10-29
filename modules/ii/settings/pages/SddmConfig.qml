@@ -46,6 +46,8 @@ ContentPage {
         const args = ["python3", page.scriptPath, "--image", page.imagePath, "--radius", String(opts.radius), "--login-text", opts.loginText];
         if (!opts.autoColors) args.push("--no-colors");
         args.push("--font-family", opts.fontFamily, "--date-size", String(opts.dateSize), "--time-size", String(opts.timeSize));
+        if (opts.dateBold) args.push("--date-bold");
+        if (opts.timeBold) args.push("--time-bold");
         for (const row of page.colorRows) {
             const v = opts["c" + row.key];
             if (/^#[0-9a-fA-F]{6}$/.test(v)) args.push("--set", row.key + "=" + v);
@@ -306,6 +308,40 @@ ContentPage {
                     to: 120
                     stepSize: 2
                     onValueChanged: Config.options.sddm.timeSize = value
+                }
+                ConfigSwitch {
+                    buttonIcon: "format_bold"
+                    text: Translation.tr("Bold date")
+                    checked: Config.options.sddm.dateBold
+                    onCheckedChanged: Config.options.sddm.dateBold = checked
+                }
+                ConfigSwitch {
+                    buttonIcon: "format_bold"
+                    text: Translation.tr("Bold clock")
+                    checked: Config.options.sddm.timeBold
+                    onCheckedChanged: Config.options.sddm.timeBold = checked
+                }
+                RippleButton {
+                    implicitWidth: resetStyleLabel.implicitWidth + 32
+                    implicitHeight: 36
+                    buttonRadius: Appearance.rounding.full
+                    onClicked: {
+                        const o = Config.options.sddm;
+                        o.fontFamily = "Atkinson Hyperlegible";
+                        o.dateSize = 36;
+                        o.timeSize = 48;
+                        o.dateBold = false;
+                        o.timeBold = true;
+                        o.clock24h = false;
+                    }
+                    contentItem: Item {
+                        StyledText {
+                            id: resetStyleLabel
+                            anchors.centerIn: parent
+                            text: Translation.tr("Restore default date/clock style")
+                            color: Appearance.colors.colOnLayer1
+                        }
+                    }
                 }
             }
 

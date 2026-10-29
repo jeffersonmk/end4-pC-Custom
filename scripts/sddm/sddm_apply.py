@@ -37,6 +37,7 @@ def main():
     a.add_argument("--clock24", action="store_true")
     a.add_argument("--login-text"); a.add_argument("--radius")
     a.add_argument("--font-family"); a.add_argument("--date-size"); a.add_argument("--time-size")
+    a.add_argument("--date-bold", action="store_true"); a.add_argument("--time-bold", action="store_true")
     a.add_argument("--set", action="append", default=[], metavar="KEY=#hex")
     a.add_argument("--dry-run", action="store_true")
     o = a.parse_args()
@@ -52,6 +53,8 @@ def main():
     if o.font_family: values["FontFamily"] = o.font_family
     if o.date_size: values["DateSize"] = o.date_size
     if o.time_size: values["TimeSize"] = o.time_size
+    values["DateIsBold"] = "true" if o.date_bold else "false"
+    values["TimeIsBold"] = "true" if o.time_bold else "false"
     for kv in o.set:  # explicit per-element colors win over the generated palette
         k, _, v = kv.partition("=")
         values[k] = v

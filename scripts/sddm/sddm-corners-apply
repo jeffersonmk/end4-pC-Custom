@@ -26,7 +26,7 @@ KEYS = {k: HEX for k in (
     "PopupActiveTextColor", "SessionButtonColor", "SessionIconColor", "PowerButtonColor",
     "PowerIconColor", "DateColor", "TimeColor")}
 KEYS.update({
-    "UserPictureEnabled": BOOL, "HidePassword": BOOL,
+    "UserPictureEnabled": BOOL, "HidePassword": BOOL, "DateIsBold": BOOL, "TimeIsBold": BOOL,
     "LoginButtonText": TEXT, "UserPlaceholderText": TEXT, "PassPlaceholderText": TEXT,
     "DateFormat": FMT, "TimeFormat": FMT,
     "FontFamily": FONT, "DateSize": INT, "TimeSize": INT,
