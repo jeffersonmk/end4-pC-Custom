@@ -17,6 +17,41 @@ ContentPage {
     baseWidth: !isMinimal ? 720 : 600
     bottomContentPadding: 35
 
+    // Papirus folder colors (same list as scripts/theming/papirus-folder-color.py)
+    readonly property var papirusColors: [
+        { id: "adwaita", name: "Adwaita" }, { id: "black", name: "Black" }, { id: "blue", name: "Blue" },
+        { id: "bluegrey", name: "Blue grey" }, { id: "breeze", name: "Breeze" }, { id: "brown", name: "Brown" },
+        { id: "carmine", name: "Carmine" }, { id: "cyan", name: "Cyan" }, { id: "darkcyan", name: "Dark cyan" },
+        { id: "deeporange", name: "Deep orange" }, { id: "green", name: "Green" }, { id: "grey", name: "Grey" },
+        { id: "indigo", name: "Indigo" }, { id: "magenta", name: "Magenta" }, { id: "nordic", name: "Nordic" },
+        { id: "orange", name: "Orange" }, { id: "palebrown", name: "Pale brown" }, { id: "paleorange", name: "Pale orange" },
+        { id: "pink", name: "Pink" }, { id: "red", name: "Red" }, { id: "teal", name: "Teal" },
+        { id: "violet", name: "Violet" }, { id: "white", name: "White" }, { id: "yellow", name: "Yellow" },
+        { id: "yaru", name: "Yaru" }
+    ]
+    readonly property var folderTheming: Config.options.appearance.wallpaperTheming
+    readonly property string folderSelected: folderTheming.papirusFolderChoice !== ""
+        ? folderTheming.papirusFolderChoice
+        : (folderTheming.papirusFolderColor ? "auto" : "default")
+
+    function pickFolderColor(key) {
+        let args;
+        if (key === "auto") {
+            folderTheming.papirusFolderChoice = "";
+            folderTheming.papirusFolderColor = true;
+            args = ["--apply"];
+        } else if (key === "default") {
+            folderTheming.papirusFolderChoice = "";
+            folderTheming.papirusFolderColor = false;
+            args = ["--restore"];
+        } else {
+            folderTheming.papirusFolderChoice = key;
+            folderTheming.papirusFolderColor = false;
+            args = ["--apply", "--folder", key];
+        }
+        Quickshell.execDetached(["python3", `${FileUtils.trimFileProtocol(Directories.scriptPath)}/theming/papirus-folder-color.py`].concat(args));
+    }
+
     component SmallLightDarkPreferenceButton: RippleButton {
         id: smallLightDarkPreferenceButton
         required property bool dark
@@ -403,5 +438,102 @@ ContentPage {
             }
         }
 
+        ContentSection {
+            icon: "folder"
+            title: Translation.tr("Papirus folder color")
+            shape: MaterialShape.Shape.Cookie6Sided
+            Layout.fillWidth: true
+            collapsible: false
+            visible: SystemAppearance.iconThemes.some(t => t.startsWith("Papirus"))
+
+            StyledText {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                font.pixelSize: Appearance.font.pixelSize.smaller
+                color: Appearance.colors.colSubtext
+                text: page.folderSelected === "auto"
+                    ? Translation.tr("Auto: the folders follow the wallpaper color.")
+                    : page.folderSelected === "default"
+                        ? Translation.tr("Default: the folder color set by the Papirus theme itself.")
+                        : Translation.tr("Fixed color. It stays when you change the wallpaper.")
+            }
+            StyledText {
+                Layout.fillWidth: true
+                visible: SystemAppearance.iconTheme !== "" && !/^Papirus/.test(SystemAppearance.iconTheme)
+                wrapMode: Text.WordWrap
+                font.pixelSize: Appearance.font.pixelSize.smaller
+                color: Appearance.colors.colError
+                text: Translation.tr("The active icon theme is not Papirus. The color applies once you pick Papirus in Settings > General.")
+            }
+
+            Flow {
+                Layout.fillWidth: true
+                spacing: 6
+
+                Repeater {
+                    model: [
+                        { id: "default", name: Translation.tr("Default") },
+                        { id: "auto", name: Translation.tr("Auto") }
+                    ].concat(page.papirusColors.map(c => ({ id: c.id, name: Translation.tr(c.name) })))
+
+                    delegate: Rectangle {
+                        id: tile
+                        required property var modelData
+                        readonly property bool isSelected: page.folderSelected === modelData.id
+                        width: 84
+                        height: 84
+                        radius: Appearance.rounding.normal
+                        color: isSelected ? Appearance.colors.colPrimary
+                            : tileMouse.containsMouse ? Appearance.colors.colSecondaryContainerHover
+                            : Appearance.colors.colSecondaryContainer
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 6
+                            spacing: 2
+
+                            Item {
+                                Layout.alignment: Qt.AlignHCenter
+                                implicitWidth: 44
+                                implicitHeight: 44
+
+                                Image {
+                                    anchors.fill: parent
+                                    visible: tile.modelData.id !== "auto"
+                                    sourceSize: Qt.size(88, 88)
+                                    smooth: true
+                                    source: "file:///usr/share/icons/Papirus-Dark/64x64/places/"
+                                        + (tile.modelData.id === "default" ? "folder.svg" : "folder-" + tile.modelData.id + ".svg")
+                                }
+                                MaterialSymbol {
+                                    anchors.centerIn: parent
+                                    visible: tile.modelData.id === "auto"
+                                    text: "auto_awesome"
+                                    iconSize: 34
+                                    color: tile.isSelected ? Appearance.colors.colOnPrimary : Appearance.colors.colOnSecondaryContainer
+                                }
+                            }
+                            StyledText {
+                                Layout.fillWidth: true
+                                horizontalAlignment: Text.AlignHCenter
+                                elide: Text.ElideRight
+                                text: tile.modelData.name
+                                font.pixelSize: Appearance.font.pixelSize.smaller
+                                font.weight: Font.Medium
+                                color: tile.isSelected ? Appearance.colors.colOnPrimary : Appearance.colors.colOnSecondaryContainer
+                            }
+                        }
+
+                        MouseArea {
+                            id: tileMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: page.pickFolderColor(tile.modelData.id)
+                        }
+                    }
+                }
+            }
+        }
     }
 }

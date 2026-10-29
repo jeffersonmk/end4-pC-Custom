@@ -1,11 +1,9 @@
 import QtQuick
 import QtQuick.Layouts
-import Quickshell
 import qs
 import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
-import qs.modules.common.functions
 
 ContentPage {
     id: page
@@ -1582,19 +1580,6 @@ ContentPage {
                     text: Translation.tr("Terminal")
                     checked: Config.options.appearance.wallpaperTheming.enableTerminal
                     onCheckedChanged: { Config.options.appearance.wallpaperTheming.enableTerminal = checked }
-                }
-                ConfigSwitch {
-                    buttonIcon: "folder"
-                    text: Translation.tr("Papirus folder color")
-                    checked: Config.options.appearance.wallpaperTheming.papirusFolderColor
-                    onCheckedChanged: {
-                        if (Config.options.appearance.wallpaperTheming.papirusFolderColor === checked) return
-                        Config.options.appearance.wallpaperTheming.papirusFolderColor = checked
-                        Quickshell.execDetached(["python3", `${FileUtils.trimFileProtocol(Directories.scriptPath)}/theming/papirus-folder-color.py`, checked ? "--apply" : "--restore"])
-                    }
-                    StyledToolTip {
-                        text: Translation.tr("Tints the Papirus folder icons (Dolphin and other apps) with the wallpaper color. Needs the Papirus icon theme.")
-                    }
                 }
                 ConfigRow {
                     uniform: true

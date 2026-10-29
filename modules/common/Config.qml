@@ -119,6 +119,7 @@ Singleton {
                     property bool enableQtApps: true
                     property bool enableTerminal: true
                     property bool papirusFolderColor: false // Tint Papirus folder icons with the wallpaper color
+                    property string papirusFolderChoice: "" // Fixed Papirus color picked in Settings > Quick (wins over the wallpaper match)
                     property JsonObject terminalGenerationProps: JsonObject {
                         property real harmony: 0.6
                         property real harmonizeThreshold: 100

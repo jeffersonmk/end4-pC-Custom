@@ -9,7 +9,7 @@ through system-appearance.sh (KDE + GTK). Dolphin and other file managers pick i
 as a normal icon theme change.
 
 Usage:
-  papirus-folder-color.py --apply [--color #rrggbb] [--dry-run]
+  papirus-folder-color.py --apply [--color #rrggbb | --folder NAME] [--dry-run]
   papirus-folder-color.py --restore
   papirus-folder-color.py --status
 
@@ -327,11 +327,17 @@ def cmd_apply(args):
         return 4
     palette = read_palette(base_dir)
     color_hex = args.color or wallpaper_color()
-    if not palette or not color_hex:
+    if not palette or not (color_hex or args.folder):
         print(json.dumps({"ok": False, "reason": "no palette or no wallpaper color"}))
         return 2
-    chosen, _ = nearest_color(color_hex, palette)
     default = default_color(base_dir)
+    if args.folder:
+        if args.folder not in palette:
+            print(json.dumps({"ok": False, "reason": f"unknown Papirus color: {args.folder}", "colors": sorted(palette)}))
+            return 2
+        chosen, color_hex = args.folder, palette[args.folder]
+    else:
+        chosen, _ = nearest_color(color_hex, palette)
     result = {"ok": True, "source": color_hex, "color": chosen, "swatch": palette[chosen], "base": base,
               "systemDefault": default, "previous": cur}
     if args.dry_run:
@@ -376,6 +382,7 @@ def main():
     g.add_argument("--restore", action="store_true")
     g.add_argument("--status", action="store_true")
     ap.add_argument("--color", help="source color (#rrggbb); default: wallpaper color")
+    ap.add_argument("--folder", help="use this Papirus color name (e.g. teal) instead of matching a source color")
     ap.add_argument("--dry-run", action="store_true", help="only print the choice")
     args = ap.parse_args()
     sys.dont_write_bytecode = True
