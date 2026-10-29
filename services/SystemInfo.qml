@@ -77,24 +77,21 @@ Singleton {
             const logoFieldMatch = textOsRelease.match(/^LOGO="?(.+?)"?$/m)
             logo = logoFieldMatch ? logoFieldMatch[1] : ""
 
-            switch (distroId) {
-                case "artix":
-                case "arch":        distroIcon = "arch-symbolic"; break
-                case "endeavouros": distroIcon = "endeavouros-symbolic"; break
-                case "cachyos":     distroIcon = "cachyos-symbolic"; break
-                case "nixos":       distroIcon = "nixos-symbolic"; break
-                case "fedora":      distroIcon = "fedora-symbolic"; break
-                case "linuxmint":
-                case "ubuntu":
-                case "zorin":
-                case "popos":       distroIcon = "ubuntu-symbolic"; break
-                case "debian":
-                case "raspbian":
-                case "kali":        distroIcon = "debian-symbolic"; break
-                case "funtoo":
-                case "gentoo":      distroIcon = "gentoo-symbolic"; break
-                default:            distroIcon = "arch-symbolic"; break
+            // os-release ID -> assets/icons/<name>-symbolic.svg (unknown IDs fall back to the Arch icon)
+            const idIcons = {
+                "arch": "arch", "artix": "artix", "endeavouros": "endeavouros", "cachyos": "cachyos",
+                "manjaro": "manjaro", "garuda": "garuda", "nixos": "nixos",
+                "fedora": "fedora", "nobara": "nobara", "rhel": "rhel", "centos": "centos",
+                "rocky": "rocky", "almalinux": "almalinux",
+                "ubuntu": "ubuntu", "linuxmint": "linuxmint", "zorin": "zorin", "pop": "popos", "popos": "popos",
+                "elementary": "elementary", "neon": "neon", "deepin": "deepin",
+                "debian": "debian", "raspbian": "raspberrypi", "kali": "kali", "parrot": "parrot",
+                "devuan": "devuan", "mx": "mx", "tails": "tails", "qubes": "qubes",
+                "gentoo": "gentoo", "funtoo": "gentoo", "void": "void", "alpine": "alpine",
+                "slackware": "slackware", "solus": "solus", "freebsd": "freebsd"
             }
+            const iconName = distroId.startsWith("opensuse") ? "opensuse" : (idIcons[distroId] ?? "arch")
+            distroIcon = iconName + "-symbolic"
             if (textOsRelease.toLowerCase().includes("nyarch"))
                 distroIcon = "nyarch-symbolic"
 
