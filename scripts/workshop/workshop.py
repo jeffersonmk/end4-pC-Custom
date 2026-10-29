@@ -7,16 +7,22 @@ already downloaded.
 
   workshop.py browse [--query TEXT] [--sort trend|recent|popular|updated]
                      [--days N] [--page N] [--tag NAME] [--mature]
-  workshop.py local  [--mature]
-  workshop.py status
+  workshop.py library [--mature] [--extra-dir DIR]
+                                      Workshop items (downloaded or not) + Wallpaper Engine's own
+                                      projects + plain videos in DIR; each item has an "origin"
+  workshop.py delete ID [ID...]       delete downloaded item folders (nothing else)
+  workshop.py requirements            checklist for the selector
 
-Content rating: unless --mature is given, only items rated "Everyone" are
-returned. With --mature, "Questionable" and "Mature" items are included too.
+Content rating: browse returns only "Everyone" items unless --mature is given;
+library hides "Questionable" and "Mature" ones unless --mature is given. Items
+without a rating are treated as not adult.
 """
 import argparse
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import urllib.parse
 import urllib.request
@@ -25,6 +31,7 @@ from typing import NoReturn
 APPID = 431960  # Wallpaper Engine
 UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 RATINGS = ("Everyone", "Questionable", "Mature")
+ORIGIN_ORDER = {"workshop": 0, "mine": 1, "folder": 2, "app": 3}
 SORTS = {
     "trend": "trend",
     "recent": "mostrecent",
@@ -168,48 +175,346 @@ def workshop_dirs():
     ]
 
 
-def cmd_local(a):
-    items, skipped = [], {"scene": 0, "web": 0, "application": 0, "other": 0, "rating": 0}
-    for base in workshop_dirs():
-        for wid in sorted(os.listdir(base)):
-            d = os.path.join(base, wid)
-            pj = os.path.join(d, "project.json")
-            if not os.path.isfile(pj):
+def parse_vdf(text):
+    """Minimal Valve KeyValues parser (what Steam writes in .acf / .vdf files)."""
+    tokens = re.findall(r'"((?:[^"\\]|\\.)*)"|([{}])', text)
+    pos = 0
+
+    def block():
+        nonlocal pos
+        d = {}
+        while pos < len(tokens):
+            key, brace = tokens[pos]
+            pos += 1
+            if brace == "}":
+                return d
+            if brace == "{":
                 continue
+            nkey, nbrace = tokens[pos] if pos < len(tokens) else ("", "")
+            if nbrace == "{":
+                pos += 1
+                d[key] = block()
+            else:
+                pos += 1
+                d[key] = nkey
+        return d
+
+    return block()
+
+
+def read_acf(path):
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            return parse_vdf(f.read())
+    except OSError:
+        return {}
+
+
+def dir_size(path):
+    total = 0
+    for root, _dirs, files in os.walk(path):
+        for fn in files:
             try:
-                with open(pj, encoding="utf-8-sig", errors="replace") as f:
-                    p = json.load(f)
-            except (OSError, ValueError):
+                total += os.path.getsize(os.path.join(root, fn))
+            except OSError:
+                pass
+    return total
+
+
+def steam_view():
+    """What Steam says about our app: subscribed ids, installed ids, pending updates."""
+    subscribed, installed, outdated = set(), {}, set()
+    for r in steam_roots():
+        acf = read_acf(os.path.join(r, "steamapps", "workshop", f"appworkshop_{APPID}.acf")).get("AppWorkshop", {})
+        for wid, d in acf.get("WorkshopItemDetails", {}).items():
+            if not isinstance(d, dict):
                 continue
-            kind = str(p.get("type", "")).lower()
-            fname = str(p.get("file", ""))
-            fpath = os.path.join(d, fname)
-            if kind != "video" or not fname.lower().endswith(VIDEO_EXT) or not os.path.isfile(fpath):
-                skipped[kind if kind in skipped else "other"] += 1
+            subscribed.add(wid)
+            if d.get("manifest") != d.get("latest_manifest"):
+                outdated.add(wid)
+        for wid, d in acf.get("WorkshopItemsInstalled", {}).items():
+            if isinstance(d, dict):
+                try:
+                    installed[wid] = int(d.get("size") or 0)
+                except ValueError:
+                    installed[wid] = 0
+    return subscribed, installed, outdated
+
+
+def steam_details(ids):
+    """Title, preview and tags for items we only know by id (public API, no key)."""
+    found = {}
+    ids = list(ids)
+    for i in range(0, len(ids), 100):
+        chunk = ids[i:i + 100]
+        body = urllib.parse.urlencode(
+            [("itemcount", len(chunk))] + [(f"publishedfileids[{n}]", x) for n, x in enumerate(chunk)]
+        ).encode()
+        try:
+            d = json.loads(fetch("https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/", data=body, timeout=15))
+        except Exception:
+            continue
+        for r in d.get("response", {}).get("publishedfiledetails", []):
+            if r.get("result") == 1:
+                found[str(r["publishedfileid"])] = item_from_steam(r)
+    return found
+
+
+def local_item(base, wid, origin="workshop", item_id=None):
+    """Read one item folder. Returns None if it has no readable project.json."""
+    d = os.path.join(base, wid)
+    pj = os.path.join(d, "project.json")
+    if not os.path.isfile(pj):
+        return None
+    try:
+        with open(pj, encoding="utf-8-sig", errors="replace") as f:
+            p = json.load(f)
+    except (OSError, ValueError):
+        return None
+    kind = str(p.get("type", "")).lower()
+    fname = str(p.get("file", ""))
+    fpath = os.path.join(d, fname) if fname else ""
+    tags = [str(t) for t in p.get("tags", []) if isinstance(t, str)]
+    rating = str(p.get("contentrating", "") or "")
+    if rating not in RATINGS:
+        rating = next((t for t in tags if t in RATINGS), "")
+    prev = str(p.get("preview", ""))
+    prev_path = os.path.join(d, prev) if prev else ""
+    if kind in ("", "none"):
+        return None  # templates, not wallpapers
+    return {
+        "id": item_id or wid,
+        "origin": origin,
+        "title": str(p.get("title", "")) or wid,
+        "type": kind or "unknown",
+        "supported": kind == "video" and fname.lower().endswith(VIDEO_EXT) and os.path.isfile(fpath),
+        "file": fpath if kind == "video" and os.path.isfile(fpath) else "",
+        "preview": prev_path if prev and os.path.isfile(prev_path) else "",
+        "rating": rating,
+        "tags": [t for t in tags if t not in RATINGS and t != "Approved"][:6],
+        "dir": d,
+    }
+
+
+THUMB_DIR = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")), "quickshell", "workshop-thumbs")
+
+
+def video_thumb(path):
+    """One frame of a plain video file, cached. Empty string if ffmpeg is missing or fails."""
+    ff = shutil.which("ffmpeg")
+    if not ff:
+        return ""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return ""
+    key = re.sub(r"[^A-Za-z0-9]+", "_", f"{path}_{st.st_size}_{int(st.st_mtime)}")[-120:]
+    dest = os.path.join(THUMB_DIR, key + ".jpg")
+    if os.path.isfile(dest):
+        return dest
+    os.makedirs(THUMB_DIR, exist_ok=True)
+    try:
+        subprocess.run([ff, "-y", "-v", "error", "-ss", "1", "-i", path, "-frames:v", "1", "-vf", "scale=480:-2", dest],
+                       timeout=12, stdin=subprocess.DEVNULL, check=True)
+    except (subprocess.SubprocessError, OSError):
+        return ""
+    return dest if os.path.isfile(dest) else ""
+
+
+def wallpaper_engine_items():
+    """Projects that ship with / were made in the Wallpaper Engine app (not from the Workshop)."""
+    items = []
+    for r in steam_roots():
+        base = os.path.join(r, "steamapps", "common", "wallpaper_engine", "projects")
+        for sub, origin in (("myprojects", "mine"), ("defaultprojects", "app")):
+            d = os.path.join(base, sub)
+            if not os.path.isdir(d):
                 continue
-            rating = str(p.get("contentrating", "") or "")
-            tags = [str(t) for t in p.get("tags", []) if isinstance(t, str)]
-            if not rating:
-                rating = next((t for t in tags if t in RATINGS), "Everyone")
-            if not a.mature and rating in ("Questionable", "Mature"):
-                skipped["rating"] += 1
+            for name in sorted(os.listdir(d)):
+                it = local_item(d, name, origin, f"{origin}:{name}")
+                if it:
+                    it.update({"downloaded": True, "subscribed": False, "needsUpdate": False, "size": dir_size(it["dir"])})
+                    items.append(it)
+    return items
+
+
+def folder_videos(folder, skip_under):
+    """Plain video files in a user folder (the 'Live Wallpaper Folder' setting)."""
+    items = []
+    if not folder or not os.path.isdir(folder):
+        return items
+    skip = [os.path.realpath(x) + os.sep for x in skip_under]
+    for root_, dirs, files in os.walk(folder):
+        dirs[:] = [d for d in dirs if not d.startswith(".")]
+        if root_[len(folder):].count(os.sep) >= 2:
+            dirs[:] = []
+        if any((os.path.realpath(root_) + os.sep).startswith(sk) for sk in skip):
+            dirs[:] = []
+            continue
+        for fn in sorted(files):
+            if not fn.lower().endswith(VIDEO_EXT):
                 continue
-            prev = str(p.get("preview", ""))
-            prev_path = os.path.join(d, prev) if prev else ""
+            fp = os.path.join(root_, fn)
+            try:
+                size = os.path.getsize(fp)
+            except OSError:
+                continue
             items.append({
-                "id": wid,
-                "title": str(p.get("title", wid)),
-                "file": fpath,
-                "preview": prev_path if prev and os.path.isfile(prev_path) else "",
-                "rating": rating,
-                "tags": [t for t in tags if t not in RATINGS][:6],
+                "id": "folder:" + os.path.relpath(fp, folder),
+                "origin": "folder",
+                "title": os.path.splitext(fn)[0],
+                "type": "video",
+                "supported": True,
+                "file": fp,
+                "preview": video_thumb(fp),
+                "rating": "",
+                "tags": [],
+                "dir": "",
+                "downloaded": True,
+                "subscribed": False,
+                "needsUpdate": False,
+                "size": size,
             })
-    items.sort(key=lambda i: i["title"].lower())
-    out({"ok": True, "items": items, "skipped": skipped, "dirs": workshop_dirs()})
+    return items
 
 
-def cmd_status(_a):
-    out({"ok": True, "steamRoots": steam_roots(), "workshopDirs": workshop_dirs()})
+def cmd_library(a):
+    subscribed, installed, outdated = steam_view()
+    items, seen = {}, set()
+    for base in workshop_dirs():
+        for wid in os.listdir(base):
+            if not wid.isdigit() or wid in seen:
+                continue
+            it = local_item(base, wid)
+            if it is None:
+                continue  # folder without project.json: half-downloaded, shown as pending below
+            seen.add(wid)
+            it["downloaded"] = True
+            it["origin"] = "workshop"
+            it["subscribed"] = wid in subscribed
+            it["needsUpdate"] = wid in outdated
+            it["size"] = installed.get(wid) or dir_size(it["dir"])
+            items[wid] = it
+    # Subscribed according to Steam, but nothing usable on disk
+    pending = [w for w in sorted(subscribed | set(installed)) if w not in items]
+    details = steam_details(pending) if pending else {}
+    for wid in pending:
+        d = details.get(wid, {})
+        items[wid] = {
+            "id": wid,
+            "origin": "workshop",
+            "title": d.get("title") or wid,
+            "type": d.get("type") or "unknown",
+            "supported": d.get("type") == "video",
+            "file": "",
+            "preview": d.get("preview", ""),
+            "rating": d.get("rating", ""),
+            "tags": d.get("tags", []),
+            "dir": "",
+            "downloaded": False,
+            "subscribed": True,
+            "needsUpdate": wid in outdated,
+            "size": d.get("size", 0),
+            "resolution": d.get("resolution", ""),
+        }
+    extras = wallpaper_engine_items()
+    if a.extra_dir:
+        extras += folder_videos(os.path.expanduser(a.extra_dir), workshop_dirs())
+    for it in extras:
+        items[it["id"]] = it
+    hidden = 0
+    out_items = []
+    for it in items.values():
+        if not a.mature and it["rating"] in ("Questionable", "Mature"):
+            hidden += 1
+            continue
+        out_items.append(it)
+    out_items.sort(key=lambda i: (ORIGIN_ORDER.get(i["origin"], 9), not i["downloaded"], i["title"].lower()))
+    out({
+        "ok": True,
+        "items": out_items,
+        "hiddenByRating": hidden,
+        "steamRunning": steam_running(),
+        "dirs": workshop_dirs(),
+    })
+
+
+def cmd_delete(a):
+    """Delete downloaded item folders. Only numeric ids, only direct children of the
+    Workshop content folder of this app, never through symlinks."""
+    bases = {os.path.realpath(b): b for b in workshop_dirs()}
+    deleted, failed, freed = [], [], 0
+    for wid in a.ids:
+        if not wid.isdigit():
+            failed.append({"id": wid, "error": "invalid id"})
+            continue
+        target = None
+        for real in bases:
+            cand = os.path.join(real, wid)
+            if os.path.lexists(cand):
+                target = cand
+                break
+        if target is None:
+            failed.append({"id": wid, "error": "not found"})
+            continue
+        if os.path.islink(target) or not os.path.isdir(target) or os.path.dirname(os.path.realpath(target)) not in bases:
+            failed.append({"id": wid, "error": "refused: not a plain folder inside the Workshop content folder"})
+            continue
+        size = dir_size(target)
+        try:
+            shutil.rmtree(target)
+            deleted.append(wid)
+            freed += size
+        except OSError as e:
+            failed.append({"id": wid, "error": str(e)})
+    out({"ok": not failed, "deleted": deleted, "failed": failed, "freed": freed})
+
+
+def steam_running():
+    try:
+        for pid in os.listdir("/proc"):
+            if pid.isdigit():
+                with open(f"/proc/{pid}/comm") as f:
+                    if f.read().strip() == "steam":
+                        return True
+    except OSError:
+        pass
+    return False
+
+
+def cmd_requirements(_a):
+    roots = steam_roots()
+    manifests = [r for r in roots if os.path.isfile(os.path.join(r, "steamapps", f"appmanifest_{APPID}.acf"))]
+    wdirs = workshop_dirs()
+    try:
+        urllib.request.urlopen(urllib.request.Request("https://steamcommunity.com/", headers={"User-Agent": UA}), timeout=6)
+        net = True
+    except Exception:
+        net = False
+    checks = [
+        ("steam", "Steam is installed", bool(roots), "required",
+         "Install Steam (sudo -S -p '' pacman -S steam) and sign in once."),
+        ("we", "Wallpaper Engine is installed in Steam", bool(manifests), "recommended",
+         "Install Wallpaper Engine from your Steam library (you can leave it closed). Steam may not download its Workshop items otherwise."),
+        ("running", "Steam is running", steam_running(), "recommended",
+         "Open Steam: it does the downloading when you subscribe."),
+        ("workshop", "Workshop folder exists (something was downloaded)", bool(wdirs), "recommended",
+         "It appears after Steam downloads your first Wallpaper Engine Workshop item."),
+        ("mpvpaper", "mpvpaper (plays video wallpapers)", shutil.which("mpvpaper") is not None, "required",
+         "sudo pacman -S mpvpaper  (or yay -S mpvpaper)"),
+        ("ffmpeg", "ffmpeg (makes the thumbnails and colors)", shutil.which("ffmpeg") is not None, "required",
+         "sudo pacman -S ffmpeg"),
+        ("xdg-open", "xdg-open (opens Steam links)", shutil.which("xdg-open") is not None, "required",
+         "sudo pacman -S xdg-utils"),
+        ("net", "Steam Workshop is reachable", net, "required",
+         "Check your internet connection. Browsing online needs it; Library works offline."),
+    ]
+    out({
+        "ok": True,
+        "checks": [{"id": i, "label": l, "ok": ok, "level": lv, "hint": h} for i, l, ok, lv, h in checks],
+        "requiredFailing": sum(1 for _i, _l, ok, lv, _h in checks if not ok and lv == "required"),
+        "videoOnly": True,
+    })
 
 
 def main():
@@ -223,11 +528,15 @@ def main():
     b.add_argument("--tag", default="")
     b.add_argument("--mature", action="store_true")
     b.set_defaults(fn=cmd_browse)
-    l = sub.add_parser("local")
-    l.add_argument("--mature", action="store_true")
-    l.set_defaults(fn=cmd_local)
-    s = sub.add_parser("status")
-    s.set_defaults(fn=cmd_status)
+    lib = sub.add_parser("library")
+    lib.add_argument("--mature", action="store_true")
+    lib.add_argument("--extra-dir", default="", help="folder with your own video wallpapers")
+    lib.set_defaults(fn=cmd_library)
+    d = sub.add_parser("delete")
+    d.add_argument("ids", nargs="+")
+    d.set_defaults(fn=cmd_delete)
+    r = sub.add_parser("requirements")
+    r.set_defaults(fn=cmd_requirements)
     a = ap.parse_args()
     a.fn(a)
 

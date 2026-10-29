@@ -764,7 +764,7 @@ MouseArea {
                                     onTriggered: WorkshopWallpapers.search(workshopSearchField.text)
                                 }
 
-                                // Online / Installed
+                                // Online / Library
                                 IconToolbarButton {
                                     implicitWidth: height
                                     text: "cloud"
@@ -774,17 +774,16 @@ MouseArea {
                                 }
                                 IconToolbarButton {
                                     implicitWidth: height
-                                    text: "download_done"
+                                    text: "video_library"
                                     toggled: !workshopToolbar.online
-                                    onClicked: if (workshopToolbar.online) WorkshopWallpapers.setMode("installed")
-                                    StyledToolTip { text: Translation.tr("Already downloaded by Steam") }
+                                    onClicked: if (workshopToolbar.online) WorkshopWallpapers.setMode("library")
+                                    StyledToolTip { text: Translation.tr("My library: subscribed, downloaded and not downloaded") }
                                 }
 
                                 ToolbarTextField {
                                     id: workshopSearchField
-                                    visible: workshopToolbar.online
                                     Layout.preferredWidth: 200
-                                    placeholderText: Translation.tr("Search the Workshop...")
+                                    placeholderText: workshopToolbar.online ? Translation.tr("Search the Workshop...") : Translation.tr("Search my library...")
                                     Component.onCompleted: root.activeFilterField = workshopSearchField
                                     Component.onDestruction: if (root.activeFilterField === workshopSearchField) root.activeFilterField = null
                                     onTextChanged: if (activeFocus) workshopDebounce.restart()
@@ -798,6 +797,10 @@ MouseArea {
                                             return
                                         }
                                         event.accepted = false
+                                    }
+                                    Connections {
+                                        target: WorkshopWallpapers
+                                        function onModeChanged() { workshopSearchField.text = "" }
                                     }
                                 }
 
@@ -871,10 +874,23 @@ MouseArea {
                                     }
                                 }
 
+                                // Requirements checklist (warning icon when something required is missing)
+                                IconToolbarButton {
+                                    implicitWidth: height
+                                    text: WorkshopWallpapers.requiredFailing > 0 ? "warning" : "fact_check"
+                                    toggled: gridLoader.item?.showRequirements ?? false
+                                    onClicked: { if (gridLoader.item) gridLoader.item.toggleRequirements() }
+                                    StyledToolTip {
+                                        text: WorkshopWallpapers.requiredFailing > 0
+                                            ? Translation.tr("Requirements: %1 missing (click to see)").arg(WorkshopWallpapers.requiredFailing)
+                                            : Translation.tr("Requirements")
+                                    }
+                                }
+
                                 IconToolbarButton {
                                     implicitWidth: height
                                     text: "refresh"
-                                    onClicked: { WorkshopWallpapers.refreshInstalled(); WorkshopWallpapers.refresh() }
+                                    onClicked: { WorkshopWallpapers.refreshLibraryInfo(); WorkshopWallpapers.refresh() }
                                     StyledToolTip { text: Translation.tr("Refresh") }
                                 }
                             }

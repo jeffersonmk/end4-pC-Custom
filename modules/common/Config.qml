@@ -1013,7 +1013,7 @@ Singleton {
                 property string wallhavenRatios: ""
                 property string wallhavenColors: ""
                 property bool workshopMature: false // Wallpaper Engine Workshop: show Questionable/Mature items (off = Everyone only)
-                property string workshopMode: "online" // "online" | "installed"
+                property string workshopMode: "online" // "online" | "library"
                 property string workshopSort: "trend" // trend | recent | popular | updated
                 property int workshopDays: 7 // trend window in days
                 property string workshopTag: "" // genre tag, e.g. Anime
