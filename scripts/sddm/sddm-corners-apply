@@ -19,6 +19,7 @@ BOOL = re.compile(r"^(true|false)$")
 TEXT = re.compile(r"^[\w .,:!?'-]{1,24}$")
 FMT = re.compile(r"^[A-Za-z0-9 ,:.\-/']{1,32}$")
 INT = re.compile(r"^\d{1,3}$")
+FONT = re.compile(r"^[\w .+-]{1,48}$")
 KEYS = {k: HEX for k in (
     "UserBorderColor", "UserColor", "InputColor", "InputTextColor", "InputBorderColor",
     "LoginButtonTextColor", "LoginButtonColor", "PopupColor", "PopupActiveColor",
@@ -28,6 +29,7 @@ KEYS.update({
     "UserPictureEnabled": BOOL, "HidePassword": BOOL,
     "LoginButtonText": TEXT, "UserPlaceholderText": TEXT, "PassPlaceholderText": TEXT,
     "DateFormat": FMT, "TimeFormat": FMT,
+    "FontFamily": FONT, "DateSize": INT, "TimeSize": INT,
     "Radius": INT, "UserBorderWidth": INT, "InputBorderWidth": INT,
 })
 

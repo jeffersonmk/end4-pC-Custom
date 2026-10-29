@@ -245,6 +245,25 @@ Singleton {
                 property bool clock24h: true
                 property string loginText: "Login"
                 property int radius: 10
+                property string fontFamily: "Atkinson Hyperlegible"
+                property int dateSize: 36
+                property int timeSize: 48
+                property string cDateColor: "" // "" = automatic
+                property string cTimeColor: "" // "" = automatic
+                property string cInputColor: "" // "" = automatic
+                property string cInputTextColor: "" // "" = automatic
+                property string cInputBorderColor: "" // "" = automatic
+                property string cLoginButtonColor: "" // "" = automatic
+                property string cLoginButtonTextColor: "" // "" = automatic
+                property string cSessionButtonColor: "" // "" = automatic
+                property string cSessionIconColor: "" // "" = automatic
+                property string cPowerButtonColor: "" // "" = automatic
+                property string cPowerIconColor: "" // "" = automatic
+                property string cPopupColor: "" // "" = automatic
+                property string cPopupActiveColor: "" // "" = automatic
+                property string cPopupActiveTextColor: "" // "" = automatic
+                property string cUserColor: "" // "" = automatic
+                property string cUserBorderColor: "" // "" = automatic
             }
 
             property JsonObject background: JsonObject {

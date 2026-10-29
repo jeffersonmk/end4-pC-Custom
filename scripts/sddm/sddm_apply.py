@@ -36,6 +36,8 @@ def main():
     a.add_argument("--show-password", action="store_true")
     a.add_argument("--clock24", action="store_true")
     a.add_argument("--login-text"); a.add_argument("--radius")
+    a.add_argument("--font-family"); a.add_argument("--date-size"); a.add_argument("--time-size")
+    a.add_argument("--set", action="append", default=[], metavar="KEY=#hex")
     a.add_argument("--dry-run", action="store_true")
     o = a.parse_args()
     values = {}
@@ -47,6 +49,12 @@ def main():
     values["TimeFormat"] = "hh:mm" if o.clock24 else "hh:mm AP"
     if o.login_text: values["LoginButtonText"] = o.login_text
     if o.radius: values["Radius"] = o.radius
+    if o.font_family: values["FontFamily"] = o.font_family
+    if o.date_size: values["DateSize"] = o.date_size
+    if o.time_size: values["TimeSize"] = o.time_size
+    for kv in o.set:  # explicit per-element colors win over the generated palette
+        k, _, v = kv.partition("=")
+        values[k] = v
     payload = json.dumps({"image": os.path.realpath(o.image) if o.image else None, "values": values})
     if o.dry_run:
         print(payload); return

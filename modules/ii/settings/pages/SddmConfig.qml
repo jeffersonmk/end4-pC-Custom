@@ -19,6 +19,24 @@ ContentPage {
         ? Config.options.background.wallpaperPath
         : Config.options.sddm.customImage
     readonly property bool imageOk: /\.(png|jpe?g|webp)$/i.test(imagePath)
+    readonly property var colorRows: [
+        { key: "DateColor", label: Translation.tr("Date"), icon: "calendar_today" },
+        { key: "TimeColor", label: Translation.tr("Clock"), icon: "schedule" },
+        { key: "InputColor", label: Translation.tr("Text box background"), icon: "input" },
+        { key: "InputTextColor", label: Translation.tr("Text box text"), icon: "text_fields" },
+        { key: "InputBorderColor", label: Translation.tr("Text box border"), icon: "border_style" },
+        { key: "LoginButtonColor", label: Translation.tr("Login button"), icon: "login" },
+        { key: "LoginButtonTextColor", label: Translation.tr("Login button text"), icon: "match_case" },
+        { key: "SessionButtonColor", label: Translation.tr("Session button"), icon: "desktop_windows" },
+        { key: "SessionIconColor", label: Translation.tr("Session button icon"), icon: "desktop_windows" },
+        { key: "PowerButtonColor", label: Translation.tr("Power button"), icon: "power_settings_new" },
+        { key: "PowerIconColor", label: Translation.tr("Power button icon"), icon: "power_settings_new" },
+        { key: "PopupColor", label: Translation.tr("Menus (popups)"), icon: "menu" },
+        { key: "PopupActiveColor", label: Translation.tr("Menu selected item"), icon: "check_box" },
+        { key: "PopupActiveTextColor", label: Translation.tr("Menu selected text"), icon: "format_color_text" },
+        { key: "UserColor", label: Translation.tr("User name text"), icon: "person" },
+        { key: "UserBorderColor", label: Translation.tr("User photo border"), icon: "account_circle" }
+    ]
     property string status: ""
     property bool statusError: false
     property bool needsInstall: false
@@ -27,6 +45,11 @@ ContentPage {
         const opts = Config.options.sddm;
         const args = ["python3", page.scriptPath, "--image", page.imagePath, "--radius", String(opts.radius), "--login-text", opts.loginText];
         if (!opts.autoColors) args.push("--no-colors");
+        args.push("--font-family", opts.fontFamily, "--date-size", String(opts.dateSize), "--time-size", String(opts.timeSize));
+        for (const row of page.colorRows) {
+            const v = opts["c" + row.key];
+            if (/^#[0-9a-fA-F]{6}$/.test(v)) args.push("--set", row.key + "=" + v);
+        }
         if (opts.userPicture) args.push("--user-picture");
         if (opts.showPassword) args.push("--show-password");
         if (opts.clock24h) args.push("--clock24");
@@ -47,6 +70,70 @@ ContentPage {
             page.status = code === 0
                 ? Translation.tr("Applied. The new look shows up at the next login screen.")
                 : (page.needsInstall ? Translation.tr("The root helper is not installed yet. Run the installer below once.") : err);
+        }
+    }
+
+
+    component ColorRow: RowLayout {
+        id: cr
+        required property var rowData
+        readonly property string cfgKey: "c" + rowData.key
+        readonly property string current: Config.options.sddm[cfgKey]
+        readonly property bool valid: /^#[0-9a-fA-F]{6}$/.test(current)
+        Layout.fillWidth: true
+        Layout.leftMargin: 8
+        Layout.rightMargin: 8
+        spacing: 10
+        OptionalMaterialSymbol { icon: cr.rowData.icon; iconSize: Appearance.font.pixelSize.larger }
+        Item {
+            Layout.fillWidth: true
+            implicitHeight: crLabel.implicitHeight
+            StyledText {
+                id: crLabel
+                anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
+                elide: Text.ElideRight
+                text: cr.rowData.label
+                color: Appearance.colors.colOnSecondaryContainer
+            }
+        }
+        Rectangle {
+            Layout.preferredWidth: 28
+            Layout.preferredHeight: 28
+            radius: Appearance.rounding.full
+            color: cr.valid ? cr.current : "transparent"
+            border.width: 1
+            border.color: Appearance.colors.colOutlineVariant
+            StyledText {
+                anchors.centerIn: parent
+                visible: !cr.valid
+                text: "A"
+                font.pixelSize: Appearance.font.pixelSize.smaller
+                color: Appearance.colors.colSubtext
+            }
+        }
+        ConfigTextArea {
+            Layout.fillWidth: false
+            Layout.leftMargin: 0
+            Layout.rightMargin: 0
+            fieldWidth: 110
+            placeholderText: Translation.tr("auto")
+            value: cr.current
+            onValueChanged: Config.options.sddm[cr.cfgKey] = value.trim()
+        }
+        RippleButton {
+            implicitWidth: 32
+            implicitHeight: 32
+            buttonRadius: Appearance.rounding.full
+            enabled: cr.current !== ""
+            onClicked: Config.options.sddm[cr.cfgKey] = ""
+            contentItem: Item {
+                MaterialSymbol {
+                    anchors.centerIn: parent
+                    text: "restart_alt"
+                    iconSize: Appearance.font.pixelSize.larger
+                    color: Appearance.colors.colOnLayer1
+                }
+            }
         }
     }
 
@@ -181,6 +268,59 @@ ContentPage {
                     text: Translation.tr("Login button text")
                     value: Config.options.sddm.loginText
                     onValueChanged: Config.options.sddm.loginText = value
+                }
+            }
+
+            ContentSubsection {
+                title: Translation.tr("Fonts and sizes")
+
+                ConfigComboBox {
+                    Layout.fillWidth: true
+                    buttonIcon: "text_fields"
+                    text: Translation.tr("Font (whole login screen)")
+                    fieldWidth: 260
+                    fixedWidth: true
+                    searchable: true
+                    model: {
+                        const opts = SystemAppearance.toOptions(SystemAppearance.fonts);
+                        const cur = Config.options.sddm.fontFamily;
+                        return opts.some(o => o.value === cur) ? opts : [{ displayName: cur, value: cur }].concat(opts);
+                    }
+                    currentValue: Config.options.sddm.fontFamily
+                    onSelected: newValue => Config.options.sddm.fontFamily = newValue
+                }
+                ConfigSpinBox {
+                    icon: "calendar_today"
+                    text: Translation.tr("Date size")
+                    value: Config.options.sddm.dateSize
+                    from: 8
+                    to: 120
+                    stepSize: 2
+                    onValueChanged: Config.options.sddm.dateSize = value
+                }
+                ConfigSpinBox {
+                    icon: "schedule"
+                    text: Translation.tr("Clock size")
+                    value: Config.options.sddm.timeSize
+                    from: 8
+                    to: 120
+                    stepSize: 2
+                    onValueChanged: Config.options.sddm.timeSize = value
+                }
+            }
+
+            ContentSubsection {
+                title: Translation.tr("Custom colors")
+
+                StyledText {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    color: Appearance.colors.colSubtext
+                    text: Translation.tr("Type a hex color like #ff8800 to override one element. Empty (auto) uses the wallpaper palette, or keeps the current login screen color if the palette is off.")
+                }
+                Repeater {
+                    model: page.colorRows
+                    delegate: ColorRow { required property var modelData; rowData: modelData }
                 }
             }
 
