@@ -535,7 +535,7 @@ Item {
                         root.endDrag();
                     } else if (!dragInitiated) {
                         grid.currentIndex = delegateCell.index;
-                        if (GlobalStates.wallpaperSelectorTarget === "lockWall" || !Config.options.background.enableWallpaperPreview) {
+                        if (GlobalStates.wallpaperSelectorTarget === "lockWall" || GlobalStates.wallpaperSelectorTarget === "sddmWall" || !Config.options.background.enableWallpaperPreview) {
                             root.wallpaperSelected(delegateCell.modelData.filePath);
                         } else {
                             if (!delegateCell.modelData.fileIsDir && Config.options.background.enableWallpaperPreview) {

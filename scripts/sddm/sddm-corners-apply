@@ -1,0 +1,101 @@
+#!/usr/bin/python3
+"""Root helper: applies a validated config to the SDDM 'corners' theme.
+
+Called via sudo (NOPASSWD, this single file only). Reads JSON on stdin:
+  {"image": "/home/user/pic.png" | null, "values": {"InputColor": "#112233", ...}}
+Only allow-listed keys and strictly validated values are written. The image
+must live under the calling user's home, be a real PNG/JPEG/WEBP, and is
+copied into the theme's backgrounds/ folder. Nothing else is touched.
+"""
+import json, os, pwd, re, shutil, sys
+
+THEME = "/usr/share/sddm/themes/corners"
+CONF = f"{THEME}/theme.conf"
+BG_DIR = f"{THEME}/backgrounds"
+MAX_IMG = 40 * 1024 * 1024
+
+HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
+BOOL = re.compile(r"^(true|false)$")
+TEXT = re.compile(r"^[\w .,:!?'-]{1,24}$")
+FMT = re.compile(r"^[A-Za-z0-9 ,:.\-/']{1,32}$")
+INT = re.compile(r"^\d{1,3}$")
+KEYS = {k: HEX for k in (
+    "UserBorderColor", "UserColor", "InputColor", "InputTextColor", "InputBorderColor",
+    "LoginButtonTextColor", "LoginButtonColor", "PopupColor", "PopupActiveColor",
+    "PopupActiveTextColor", "SessionButtonColor", "SessionIconColor", "PowerButtonColor",
+    "PowerIconColor", "DateColor", "TimeColor")}
+KEYS.update({
+    "UserPictureEnabled": BOOL, "HidePassword": BOOL,
+    "LoginButtonText": TEXT, "UserPlaceholderText": TEXT, "PassPlaceholderText": TEXT,
+    "DateFormat": FMT, "TimeFormat": FMT,
+    "Radius": INT, "UserBorderWidth": INT, "InputBorderWidth": INT,
+})
+
+def die(msg):
+    print(f"sddm-corners-apply: {msg}", file=sys.stderr)
+    sys.exit(1)
+
+def main():
+    if os.geteuid() != 0:
+        die("must run as root (via sudo)")
+    try:
+        data = json.load(sys.stdin)
+    except Exception as e:
+        die(f"bad JSON: {e}")
+    values = dict(data.get("values") or {})
+    for k, v in values.items():
+        rx = KEYS.get(k)
+        if rx is None or not isinstance(v, str) or not rx.match(v):
+            die(f"rejected key/value: {k!r}")
+
+    image = data.get("image")
+    if image:
+        caller = os.environ.get("SUDO_USER")
+        if not caller:
+            die("SUDO_USER missing")
+        home = os.path.realpath(pwd.getpwnam(caller).pw_dir)
+        real = os.path.realpath(image)
+        if not real.startswith(home + os.sep) or not os.path.isfile(real):
+            die("image must be a file under the caller's home")
+        if os.path.getsize(real) > MAX_IMG:
+            die("image too large")
+        with open(real, "rb") as f:
+            head = f.read(16)
+        if head.startswith(b"\x89PNG\r\n\x1a\n"): ext = "png"
+        elif head.startswith(b"\xff\xd8\xff"): ext = "jpg"
+        elif head[:4] == b"RIFF" and head[8:12] == b"WEBP": ext = "webp"
+        else: die("not a PNG/JPEG/WEBP image")
+        for old in os.listdir(BG_DIR):
+            if old.startswith("shell-wallpaper."):
+                os.remove(os.path.join(BG_DIR, old))
+        dest = f"{BG_DIR}/shell-wallpaper.{ext}"
+        shutil.copyfile(real, dest)
+        os.chmod(dest, 0o644)
+        values["BgSource"] = f'"{dest}"'
+
+    if not os.path.exists(CONF + ".orig"):
+        shutil.copyfile(CONF, CONF + ".orig")
+    with open(CONF) as f:
+        lines = f.read().split("\n")
+    pending = dict(values)
+    out = []
+    for line in lines:
+        m = re.match(r"^([A-Za-z]+)=", line)
+        if m and m.group(1) in pending:
+            k = m.group(1)
+            v = pending.pop(k)
+            if k != "BgSource" and KEYS[k] is not BOOL and KEYS[k] is not INT:
+                v = f'"{v}"'
+            out.append(f"{k}={v}")
+        else:
+            out.append(line)
+    if pending:
+        die(f"keys not present in theme.conf: {sorted(pending)}")
+    tmp = CONF + ".tmp"
+    with open(tmp, "w") as f:
+        f.write("\n".join(out))
+    os.chmod(tmp, 0o644)
+    os.replace(tmp, CONF)
+    print("ok")
+
+main()

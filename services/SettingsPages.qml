@@ -15,6 +15,7 @@ Singleton {
             { id: "general",   name: Translation.tr("General"),   icon: "browse",         file: "GeneralConfig.qml" },
             { id: "bar",       name: Translation.tr("Bar"),       icon: "toast",          iconRotation: 180, file: "BarConfig.qml" },
             { id: "desktop",   name: Translation.tr("Desktop"),   icon: "texture",        file: "BackgroundConfig.qml" },
+            { id: "sddm",      name: Translation.tr("Login screen"), icon: "login",      file: "SddmConfig.qml" },
             { id: "interface", name: Translation.tr("Interface"), icon: "bottom_app_bar", file: "InterfaceConfig.qml" },
             { id: "services",  name: Translation.tr("Services"),  icon: "settings",       file: "ServicesConfig.qml" },
         ];

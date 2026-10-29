@@ -74,7 +74,12 @@ MouseArea {
 
     function selectWallpaperPath(filePath) {
         if (filePath && filePath.length > 0) {
-            if (GlobalStates.wallpaperSelectorTarget === "lockWall") {
+            if (GlobalStates.wallpaperSelectorTarget === "sddmWall") {
+                Config.options.sddm.customImage = filePath;
+                Config.options.sddm.useShellWallpaper = false;
+                GlobalStates.wallpaperSelectorTarget = "wallpaper";
+                GlobalStates.wallpaperSelectorOpen = false;
+            } else if (GlobalStates.wallpaperSelectorTarget === "lockWall") {
                 Wallpapers.select(filePath, root.useDarkMode, finalPath => {
                     Config.options.background.lockWall = finalPath;
                     GlobalStates.wallpaperSelectorTarget = "wallpaper";

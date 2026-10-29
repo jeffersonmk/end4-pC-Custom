@@ -236,6 +236,17 @@ Singleton {
                 property list<string> collapsedSections: []
             }
 
+            property JsonObject sddm: JsonObject {
+                property bool useShellWallpaper: true // false = use customImage
+                property string customImage: ""
+                property bool autoColors: true // generate theme colors from the wallpaper palette
+                property bool userPicture: false // show the user's avatar above the login fields
+                property bool showPassword: false // show password characters while typing
+                property bool clock24h: true
+                property string loginText: "Login"
+                property int radius: 10
+            }
+
             property JsonObject background: JsonObject {
                 property string lockWall: ""
                 property bool widgetsLocked: false

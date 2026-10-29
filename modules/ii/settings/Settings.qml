@@ -79,7 +79,7 @@ Scope {
         Rectangle {
             id: settingsWindow
             width: Config.options.settings.style === "minimal" ? Math.min(parent.width - 70, 1060 * sizeScale) : Math.min(parent.width - 80, 1060 * sizeScale)
-            height: Math.min(parent.height - 80, 720 * sizeScale)
+            height: Math.min(parent.height - 80, 780 * sizeScale)
             color: Appearance.colors.colUiBackground
             border.width: Config.options.settings.borderSize
             border.color: CF.ColorUtils.transparentize(Appearance.getColorFromName(Config.options.settings.borderColor), 0.8)
