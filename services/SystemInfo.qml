@@ -92,9 +92,6 @@ Singleton {
             }
             const iconName = distroId.startsWith("opensuse") ? "opensuse" : (idIcons[distroId] ?? "arch")
             distroIcon = iconName + "-symbolic"
-            if (textOsRelease.toLowerCase().includes("nyarch"))
-                distroIcon = "nyarch-symbolic"
-
             if (logo.trim().length === 0)
                 logo = distroIcon
         }
