@@ -563,6 +563,10 @@ Singleton {
                 }
 
                 property JsonObject aiUsage: JsonObject {
+                    // Which providers the bar widget shows. The numbers come from the
+                    // opt-in cheatsheet.aiUsage.<claude|chatgpt> keys (online plan usage)
+                    property bool claudeEnabled: true
+                    property bool codexEnabled: true
                     property int tokenLimit: 1000000
                     property int updateInterval: 60
                 }

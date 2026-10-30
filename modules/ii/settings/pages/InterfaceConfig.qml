@@ -719,7 +719,7 @@ ContentPage {
 
             ContentSubsection {
                 title: Translation.tr("AI usage tab")
-                tooltip: Translation.tr("Plan limits shown in the AI usage tab of the cheat sheet (Super + /).\nEach one reads the login of the app on this PC and asks the provider's servers for your usage.\nNothing is sent anywhere else, and the login is never changed or renewed.")
+                tooltip: Translation.tr("Plan limits shown in the AI usage tab of the cheat sheet (Super + /) and in the bar's AI Usage widget.\nEach one reads the login of the app on this PC and asks the provider's servers for your usage.\nNothing is sent anywhere else, and the login is never changed or renewed.")
                 GroupedList {
                     ConfigSwitch {
                         buttonIcon: "token"

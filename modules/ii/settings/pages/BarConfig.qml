@@ -87,7 +87,8 @@ ContentPage {
         utilButtons: Translation.tr("Utility buttons"),
         workspaces: Translation.tr("Workspaces"),
         resources: Translation.tr("Resources"),
-        media: Translation.tr("Media")
+        media: Translation.tr("Media"),
+        aiUsage: Translation.tr("AI Usage")
     })
 
     function openWidgetSettings(id) {
@@ -851,6 +852,56 @@ ContentPage {
                     stepSize: 100
                     onValueChanged: {
                         Config.options.resources.updateInterval = value;
+                    }
+                }
+            }
+        }
+
+        ContentSection {
+            icon: "neurology"
+            title: Translation.tr("AI Usage")
+            visible: page.isUsed("aiUsage")
+
+            ContentSubsection {
+                title: Translation.tr("Show in the bar")
+                tooltip: Translation.tr("Each one shows its logo and the plan usage %. Hover for every limit, click a logo to open Claude or ChatGPT.")
+                GroupedList {
+                    ConfigSwitch {
+                        buttonIcon: "terminal"
+                        text: Translation.tr("Claude Code (5-hour session and weekly limits)")
+                        checked: Config.options.bar.aiUsage.claudeEnabled
+                        onCheckedChanged: { Config.options.bar.aiUsage.claudeEnabled = checked }
+                    }
+                    ConfigSwitch {
+                        buttonIcon: "code"
+                        text: Translation.tr("Codex (ChatGPT plan limits)")
+                        checked: Config.options.bar.aiUsage.codexEnabled
+                        onCheckedChanged: { Config.options.bar.aiUsage.codexEnabled = checked }
+                    }
+                }
+            }
+
+            ContentSubsection {
+                title: Translation.tr("Online usage data")
+                tooltip: Translation.tr("Same switches as the AI usage tab of the cheat sheet.\nEach one reads the login of the app on this PC and asks the provider's servers for your usage.\nNothing is sent anywhere else, and the login is never changed or renewed.")
+                GroupedList {
+                    ConfigSwitch {
+                        buttonIcon: "token"
+                        text: Translation.tr("Claude usage (reads the Claude Code login)")
+                        checked: Config.options.cheatsheet.aiUsage.claude
+                        onCheckedChanged: { Config.options.cheatsheet.aiUsage.claude = checked }
+                        StyledToolTip {
+                            text: Translation.tr("Reads ~/.claude/.credentials.json and queries api.anthropic.com")
+                        }
+                    }
+                    ConfigSwitch {
+                        buttonIcon: "token"
+                        text: Translation.tr("ChatGPT usage (reads the Codex login)")
+                        checked: Config.options.cheatsheet.aiUsage.chatgpt
+                        onCheckedChanged: { Config.options.cheatsheet.aiUsage.chatgpt = checked }
+                        StyledToolTip {
+                            text: Translation.tr("Reads ~/.codex/auth.json and queries chatgpt.com")
+                        }
                     }
                 }
             }
