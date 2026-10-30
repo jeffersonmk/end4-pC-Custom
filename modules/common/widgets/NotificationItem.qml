@@ -250,20 +250,13 @@ Item { // Notification item area
                             NotificationActionButton {
                                 Layout.fillWidth: true
                                 buttonText: Translation.tr("Close")
+                                iconName: "close"
                                 urgency: notificationObject.urgency
                                 implicitWidth: (notificationObject.actions.length == 0) ? ((actionsFlickable.width - actionRowLayout.spacing) / 2) : 
                                     (contentItem.implicitWidth + leftPadding + rightPadding)
 
                                 onClicked: {
                                     root.destroyWithAnimation()
-                                }
-
-                                contentItem: MaterialSymbol {
-                                    iconSize: Appearance.font.pixelSize.larger
-                                    horizontalAlignment: Text.AlignHCenter
-                                    color: (notificationObject.urgency == NotificationUrgency.Critical) ? 
-                                        Appearance.m3colors.m3onSurfaceVariant : Appearance.m3colors.m3onSurface
-                                    text: "close"
                                 }
                             }
 
@@ -274,7 +267,12 @@ Item { // Notification item area
                                     id: notifAction
                                     required property var modelData
                                     Layout.fillWidth: true
-                                    buttonText: modelData.text
+                                    // Apps often send the default action ("click the notification")
+                                    // with an empty label: name it instead of showing a blank button.
+                                    buttonText: (modelData.text ?? "").trim() !== "" ? modelData.text
+                                        : modelData.identifier === "default" ? Translation.tr("Open")
+                                        : modelData.identifier
+                                    iconName: modelData.identifier === "default" ? "open_in_new" : ""
                                     urgency: notificationObject.urgency
                                     onClicked: {
                                         Notifications.attemptInvokeAction(notificationObject.notificationId, modelData.identifier);
@@ -283,14 +281,18 @@ Item { // Notification item area
                             }
 
                             NotificationActionButton {
+                                id: copyButton
+                                property bool copied: false
                                 Layout.fillWidth: true
+                                buttonText: copied ? Translation.tr("Copied!") : Translation.tr("Copy")
+                                iconName: copied ? "inventory" : "content_copy"
                                 urgency: notificationObject.urgency
                                 implicitWidth: (notificationObject.actions.length == 0) ? ((actionsFlickable.width - actionRowLayout.spacing) / 2) : 
                                     (contentItem.implicitWidth + leftPadding + rightPadding)
 
                                 onClicked: {
                                     Quickshell.clipboardText = notificationObject.body
-                                    copyIcon.text = "inventory"
+                                    copyButton.copied = true
                                     copyIconTimer.restart()
                                 }
 
@@ -298,18 +300,7 @@ Item { // Notification item area
                                     id: copyIconTimer
                                     interval: 1500
                                     repeat: false
-                                    onTriggered: {
-                                        copyIcon.text = "content_copy"
-                                    }
-                                }
-
-                                contentItem: MaterialSymbol {
-                                    id: copyIcon
-                                    iconSize: Appearance.font.pixelSize.larger
-                                    horizontalAlignment: Text.AlignHCenter
-                                    color: (notificationObject.urgency == NotificationUrgency.Critical) ? 
-                                        Appearance.m3colors.m3onSurfaceVariant : Appearance.m3colors.m3onSurface
-                                    text: "content_copy"
+                                    onTriggered: copyButton.copied = false
                                 }
                             }
                             
