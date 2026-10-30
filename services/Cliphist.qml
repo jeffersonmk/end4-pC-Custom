@@ -205,6 +205,46 @@ Singleton {
         wipeProc.running = true;
     }
 
+    // ---- Recording. The shell owns the two wl-paste watchers (they used to be started by
+    // Hyprland's execs) so the history can be switched off from Settings.
+    readonly property bool historyEnabled: Config.ready && (Config.options.search.saveClipboardHistory ?? true)
+    readonly property string watchScript: FileUtils.trimFileProtocol(`${Directories.scriptPath}/clipboard/watch.py`)
+
+    function syncWatchers() {
+        textWatcher.running = root.historyEnabled;
+        imageWatcher.running = root.historyEnabled;
+        // Off: also stop watchers started by someone else (e.g. an old Hyprland execs line)
+        if (!root.historyEnabled && Config.ready) killWatchersProc.running = true;
+    }
+    onHistoryEnabledChanged: root.syncWatchers()
+    Connections { // Config loads after this singleton: also covers "history already off at startup"
+        target: Config
+        function onReadyChanged() { root.syncWatchers() }
+    }
+
+    Timer { // A watcher that died while it should run (wl-paste crashed): bring it back
+        id: watchRetry
+        interval: 5000
+        onTriggered: root.syncWatchers()
+    }
+
+    Process {
+        id: killWatchersProc
+        command: ["python3", "-I", root.watchScript, "kill"]
+    }
+    Process {
+        id: textWatcher
+        command: ["python3", "-I", root.watchScript, "text", root.cliphistBinary]
+        stdout: SplitParser { onRead: delayedUpdateTimer.restart() }
+        onExited: if (root.historyEnabled) watchRetry.restart()
+    }
+    Process {
+        id: imageWatcher
+        command: ["python3", "-I", root.watchScript, "image", root.cliphistBinary]
+        stdout: SplitParser { onRead: delayedUpdateTimer.restart() }
+        onExited: if (root.historyEnabled) watchRetry.restart()
+    }
+
     Connections {
         target: Quickshell
         function onClipboardTextChanged() {

@@ -117,7 +117,7 @@ Singleton {
         {
             action: "wipeclipboard",
             execute: () => {
-                Quickshell.execDetached(["bash", "-c", "rm -f ~/.cache/cliphist/db"]);
+                Cliphist.wipe();
             }
         },
         {

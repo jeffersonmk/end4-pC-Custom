@@ -121,6 +121,52 @@ ContentPage {
                         Config.options.search.clipboardPreviewPopup = checked;
                     }
                 }
+                ConfigSwitch {
+                    buttonIcon: "content_paste"
+                    text: Translation.tr("Save clipboard history")
+                    checked: Config.options.search.saveClipboardHistory
+                    onCheckedChanged: {
+                        Config.options.search.saveClipboardHistory = checked;
+                    }
+                }
+                RowLayout {
+                    id: clipboardClearRow
+                    property bool confirming: false
+                    spacing: 10
+                    Layout.bottomMargin: 6
+                    Layout.leftMargin: 5
+                    MaterialSymbol {
+                        text: "history"
+                        iconSize: Appearance.font.pixelSize.larger
+                        color: Appearance.colors.colOnSecondaryContainer
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: Translation.tr("Clipboard history: %1 items").arg(Cliphist.entries.length)
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        color: Appearance.colors.colOnSecondaryContainer
+                    }
+                    RippleButtonWithIcon {
+                        materialIcon: clipboardClearRow.confirming ? "warning" : "delete_sweep"
+                        mainText: clipboardClearRow.confirming ? Translation.tr("Click again to erase everything") : Translation.tr("Clear history")
+                        enabled: Cliphist.entries.length > 0 || clipboardClearRow.confirming
+                        onClicked: {
+                            if (!clipboardClearRow.confirming) {
+                                clipboardClearRow.confirming = true;
+                                clipboardConfirmTimer.restart();
+                            } else {
+                                clipboardClearRow.confirming = false;
+                                clipboardConfirmTimer.stop();
+                                Cliphist.wipe();
+                            }
+                        }
+                    }
+                    Timer {
+                        id: clipboardConfirmTimer
+                        interval: 4000
+                        onTriggered: clipboardClearRow.confirming = false
+                    }
+                }
             }
 
             ContentSubsection {

@@ -860,5 +860,9 @@
   "Made in WE": "Feito no WE",
   "Built into WE": "Do WE",
   "To list your own video files here, set a Live Wallpaper Folder in Settings > Interface.": "Para listar aqui os seus próprios vídeos, defina a Pasta de Live Wallpaper em Configurações > Interface.",
-  "Copied!": "Copiado!"
+  "Copied!": "Copiado!",
+  "Save clipboard history": "Guardar histórico da área de transferência",
+  "Clipboard history: %1 items": "Histórico da área de transferência: %1 itens",
+  "Click again to erase everything": "Clique de novo para apagar tudo",
+  "Clear history": "Limpar histórico"
 }

@@ -896,6 +896,7 @@ Singleton {
                 property list<string> excludedSites: ["quora.com", "facebook.com"]
                 property list<var> clipboardPins: []
                 property bool clipboardPreviewPopup: false
+                property bool saveClipboardHistory: true // false = nothing you copy is stored (Services > Search)
                 property bool sloppy: false // Uses levenshtein distance based scoring instead of fuzzy sort. Very weird.
                 property JsonObject prefix: JsonObject {
                     property bool showDefaultActionsWithoutPrefix: true
