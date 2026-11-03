@@ -9,6 +9,7 @@ Search strategy (stops at the first synced match):
   1. exact lookup with every artist variant (full string, then the main artist
      when the field lists several: "Nile, Karl Sanders" -> "Nile")
   2. searches by track + artist, then free text
+  3. synced lyrics from BetterLyrics/Boidu (TTML) when lrclib has none
 Among the results, the synced version whose length is closest to the playing
 track wins, so the lines line up with the version that is actually playing.
 When no synced version exists, plain lyrics are returned instead, spread evenly over
@@ -23,8 +24,10 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import xml.etree.ElementTree as ET
 
 API = "https://lrclib.net/api"
+BOIDU_BASES = ["https://api.betterlyrics.org", "https://lyrics-api.boidu.dev"]
 UA = "end4-pC-Custom lyrics (https://github.com/jeffersonmk/end4-pC-Custom)"
 CACHE_DIR = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")),
                          "quickshell", "lyrics")
@@ -151,6 +154,50 @@ def spread_plain(text: str, duration: float) -> list:
     return [{"time": round(start + i * step, 3), "text": w} for i, w in enumerate(words)]
 
 
+def ttml_seconds(value: str) -> float:
+    total = 0.0
+    for part in value.strip().rstrip("s").split(":"):
+        total = total * 60 + float(part)
+    return total
+
+
+def parse_ttml(ttml: str) -> list:
+    root = ET.fromstring(ttml)
+    lines = []
+    for p in root.iter():
+        if not (p.tag.endswith("}p") or p.tag == "p"):
+            continue
+        begin = p.get("begin")
+        if begin is None:
+            continue
+        text = re.sub(r"\s+", " ", "".join(p.itertext())).strip()
+        try:
+            lines.append({"time": ttml_seconds(begin), "text": text})
+        except ValueError:
+            continue
+    lines.sort(key=lambda x: x["time"])
+    return lines
+
+
+def fetch_boidu(titles_raw: list, artists_raw: list, duration: float) -> list:
+    """Synced lines from BetterLyrics/Boidu, or [] when neither has the song."""
+    for t in titles_raw:
+        for a in artists_raw:
+            query = "/getLyrics?" + urllib.parse.urlencode(
+                {"s": t, "a": a, **({"d": int(duration)} if duration > 0 else {})})
+            for base in BOIDU_BASES:
+                try:
+                    req = urllib.request.Request(base + query, headers={"User-Agent": UA})
+                    with urllib.request.urlopen(req, timeout=12) as r:
+                        data = json.loads(r.read().decode())
+                    lines = parse_ttml(data.get("ttml") or "")
+                    if len(lines) >= 3:
+                        return lines
+                except Exception:
+                    continue
+    return []
+
+
 def fetch(title: str, artist: str, duration: float, album: str):
     """Returns (lines, plain)."""
     titles_raw = [title.strip()]
@@ -198,7 +245,12 @@ def fetch(title: str, artist: str, duration: float, album: str):
         if best:
             return parse_lrc(best["syncedLyrics"]), False
 
-    # 3. no synced version anywhere: fall back to plain lyrics
+    # 3. lrclib has no synced version: try BetterLyrics/Boidu before settling for plain text
+    lines = fetch_boidu(titles_raw, artists_raw, duration)
+    if lines:
+        return lines, False
+
+    # 4. no synced version anywhere: fall back to plain lyrics
     best = pick(exact + pool, titles, artists, duration, "plainLyrics")
     if best:
         lines = spread_plain(best["plainLyrics"], duration)
