@@ -26,8 +26,8 @@ AiPopup {
             key: "editConfig",
             icon: "tune",
             title: Translation.tr("Change shell settings"),
-            description: Translation.tr("Lets the model change a setting. It is applied right away, without asking."),
-            risk: "careful",
+            description: Translation.tr("Lets the model propose a change to a setting. It is applied only after you approve it."),
+            risk: "asks",
             needs: "readConfig"
         },
         {

@@ -120,6 +120,23 @@ AiPopup {
         }
     }
 
+    StyledText {
+        visible: Ai.gameFreed
+        Layout.fillWidth: true
+        wrapMode: Text.Wrap
+        font.pixelSize: Appearance.font.pixelSize.smaller
+        color: Appearance.colors.colTertiary
+        text: Translation.tr("A game is running: models are unloaded to free the GPU.")
+    }
+    StyledText {
+        visible: Ai.benchMessage.length > 0
+        Layout.fillWidth: true
+        wrapMode: Text.Wrap
+        font.pixelSize: Appearance.font.pixelSize.smaller
+        color: Appearance.colors.colError
+        text: Ai.benchMessage
+    }
+
     RippleButton {
         visible: !Ai.ollamaRunning && Ai.ollamaHealth.installed !== false
         enabled: Ai.ollamaBusy === ""
@@ -262,6 +279,23 @@ AiPopup {
                             fg: Appearance.m3colors.m3onTertiaryContainer
                         }
                         Badge {
+                            visible: Ai.benchRunning !== "" && Ai.benchRunning === (row.info?.name ?? "")
+                            icon: "hourglass_top"
+                            text: Translation.tr("Measuring speed…")
+                            color: Appearance.colors.colTertiaryContainer
+                            fg: Appearance.m3colors.m3onTertiaryContainer
+                        }
+                        Badge {
+                            visible: Ai.benchResults[row.info?.name ?? ""] !== undefined
+                            icon: "speed"
+                            text: {
+                                const b = Ai.benchResults[row.info?.name ?? ""];
+                                return b ? Translation.tr("%1 tok/s · %2% GPU").arg(Math.round(b.tps)).arg(b.gpuPercent) : "";
+                            }
+                            color: Appearance.colors.colPrimaryContainer
+                            fg: Appearance.colors.colOnPrimaryContainer
+                        }
+                        Badge {
                             visible: (row.info?.capabilities ?? []).includes("tools")
                             icon: "service_toolbox"
                             text: Translation.tr("Tools")
@@ -282,6 +316,28 @@ AiPopup {
                             text: (row.info?.contextLength ?? 0) >= 1024 ? Translation.tr("%1k ctx").arg(Math.round(row.info.contextLength / 1024)) : Translation.tr("%1 ctx").arg(row.info?.contextLength ?? 0)
                         }
                     }
+                }
+
+                // Measure the real speed
+                RippleButton {
+                    visible: row.info !== null && row.chatCapable
+                    Layout.alignment: Qt.AlignTop
+                    implicitWidth: 30
+                    implicitHeight: 30
+                    topPadding: 0
+                    bottomPadding: 0
+                    buttonRadius: Appearance.rounding.full
+                    colBackground: "transparent"
+                    opacity: Ai.benchRunning === "" ? 1 : 0.4
+                    onClicked: Ai.runBenchmark(row.info.name)
+                    contentItem: MaterialSymbol {
+                        anchors.centerIn: parent
+                        horizontalAlignment: Text.AlignHCenter
+                        text: "speed"
+                        iconSize: Appearance.font.pixelSize.larger
+                        color: Appearance.colors.colOnLayer3
+                    }
+                    StyledToolTip { text: Translation.tr("Measure the real speed of this model (about 10 seconds)") }
                 }
 
                 // Free VRAM (model stays installed)

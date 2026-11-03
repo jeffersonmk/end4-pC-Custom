@@ -80,7 +80,7 @@ Singleton {
                     "function": {
                         "name": "get_shell_config",
                         "description": "Get the desktop shell config file contents",
-                        "parameters": {}
+                        "parameters": { "type": "object", "properties": {} }
                     },
                 },
                 {
@@ -566,6 +566,7 @@ Singleton {
         root.catalogError = "";
         const args = ["python3", root.catalogScript, "list", "--ctx", String(root.catalogCtx)];
         if (force) args.push("--refresh");
+        if (Config?.options?.ai?.ollama?.useFreeVram ?? true) args.push("--free-vram");
         catalogProc.exec(args);
     }
 
@@ -707,6 +708,86 @@ Singleton {
         }
     }
 
+
+    // ---- Benchmarks (scripts/ai/ollama-bench.py): real tokens/s of the installed models ----
+    readonly property string benchScript: `${Directories.scriptPath}/ai/ollama-bench.py`.replace(/file:\/\//, "")
+    property var benchResults: ({})       // raw model name -> { tps, gpuPercent, ... }
+    property string benchRunning: ""      // raw model name being measured
+    property string benchMessage: ""
+    property string benchLastLine: ""
+
+    function loadBenchResults() {
+        if (!benchListProc.running) benchListProc.running = true;
+    }
+
+    function runBenchmark(name) {
+        if (root.benchRunning !== "") return;
+        if (root.ollamaHealth.running !== true) {
+            root.benchMessage = Translation.tr("Start Ollama first.");
+            return;
+        }
+        root.benchMessage = "";
+        root.benchRunning = name;
+        root.benchLastLine = "";
+        benchProc.exec(["python3", root.benchScript, "run", name, "--ctx", "4096"]);
+    }
+
+    Process {
+        id: benchListProc
+        command: ["python3", root.benchScript, "list"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { root.benchResults = JSON.parse(text.trim().split("\n").pop()).results ?? {}; } catch (e) {}
+            }
+        }
+    }
+
+    Process {
+        id: benchProc
+        stdout: SplitParser {
+            onRead: line => { root.benchLastLine = line; }
+        }
+        onExited: (exitCode, exitStatus) => {
+            const name = root.benchRunning;
+            let r = { ok: false, error: "no-answer" };
+            try { r = JSON.parse(root.benchLastLine); } catch (e) {}
+            root.benchRunning = "";
+            if (r.ok === true) {
+                root.benchResults = Object.assign({}, root.benchResults, { [name]: r.result });
+                if (root.catalog.variants) root.loadCatalog(false); // the ranking uses the measurement
+            } else {
+                root.benchMessage = r.error === "not-chat" ? Translation.tr("Embedding models can't be benchmarked.")
+                    : r.error === "ollama-not-running" ? Translation.tr("Start Ollama first.")
+                    : Translation.tr("The benchmark failed: %1").arg(r.error ?? "?");
+            }
+            root.refreshLocalModels();
+        }
+    }
+
+    // ---- Game mode: free the GPU while a game runs (opt in: ai.ollama.gameMode) ----
+    readonly property bool gameDetected: {
+        if (!(Config?.options?.ai?.ollama?.gameMode ?? false)) return false;
+        let rx = null;
+        try { rx = new RegExp(Config?.options?.ai?.ollama?.gamePattern ?? ""); } catch (e) { return false; }
+        return (HyprlandData.windowList ?? []).some(w => rx.test(w.class ?? ""));
+    }
+    property bool gameFreed: false        // models were unloaded because of a game
+    property bool gameWarned: false
+
+    onGameDetectedChanged: {
+        if (root.gameDetected) {
+            root.gameFreed = true;
+            root.unloadAllOllama();
+        } else {
+            root.gameFreed = false;
+            root.gameWarned = false;
+        }
+    }
+
+    function unloadAllOllama() {
+        if (!ollamaAction.running) ollamaAction.exec(["python3", root.ollamaScript, "unload-all"]);
+    }
+
     function autostartOllamaIfWanted() {
         if (!(Config?.options?.ai?.ollama?.autostart ?? false)) return;
         root.wantAutostart = true;
@@ -715,6 +796,7 @@ Singleton {
 
     function refreshLocalModels() {
         root.refreshOllamaHealth();
+        root.loadBenchResults();
         getOllamaModels.running = false;
         getOllamaModels.running = true;
         getVllmModels.running = false;
@@ -882,6 +964,10 @@ Singleton {
         property list<string> baseCommand: ["bash"]
         property AiMessageData message
         property ApiStrategy currentStrategy
+        // A function call is answered only after this request's process has ended: answering
+        // it starts the next request, which can't begin while the old curl is still running
+        property var pendingCall: null
+        property AiMessageData pendingCallMessage
 
         function markDone() {
             requester.message.done = true;
@@ -890,6 +976,8 @@ Singleton {
                 root.postResponseHook = null; // Reset hook after use
             }
             root.saveChat("lastSession")
+            // While a game runs the model must not stay in VRAM after answering
+            if (root.gameFreed && requester.pendingCall === null) root.unloadAllOllama()
             root.responseFinished()
         }
 
@@ -982,7 +1070,8 @@ Singleton {
 
                     if (result.functionCall) {
                         requester.message.functionCall = result.functionCall;
-                        root.handleFunctionCall(result.functionCall.name, result.functionCall.args, requester.message);
+                        requester.pendingCall = result.functionCall;
+                        requester.pendingCallMessage = requester.message;
                     }
                     if (result.tokenUsage) {
                         root.tokenCount.input = result.tokenUsage.input;
@@ -1009,12 +1098,21 @@ Singleton {
             } else if (!requester.message.done) {
                 requester.markDone();
             }
+            if (requester.pendingCall) {
+                const call = requester.pendingCall;
+                requester.pendingCall = null;
+                root.handleFunctionCall(call.name, call.args, requester.pendingCallMessage);
+            }
         }
     }
 
     function sendUserMessage(message) {
         if (message.length === 0) return;
         const attached = root.pendingFilePath;
+        if (root.gameFreed && !root.gameWarned) {
+            root.gameWarned = true;
+            root.addMessage(Translation.tr("A game is running. The model loads into the GPU for this answer and is unloaded right after."), root.interfaceRole);
+        }
         root.addMessage(message, "user", attached);
         requester.makeRequest();
     }
@@ -1055,15 +1153,38 @@ Singleton {
         root.messageByID[id] = aiMessage;
     }
 
+    // Settings the model must never change by itself: its own permissions, where Ollama keeps
+    // the models, which models exist, and the policies that limit what the AI may do
+    readonly property var protectedConfigPrefixes: ["ai.functions", "ai.tool", "ai.ollama", "ai.extraModels", "policies"]
+
+    function configValueAt(key) {
+        let obj = Config.options;
+        for (const k of key.split(".")) {
+            if (obj === undefined || obj === null || typeof obj !== "object") return undefined;
+            obj = obj[k];
+        }
+        return obj;
+    }
+
     function rejectCommand(message: AiMessageData) {
         if (!message.functionPending) return;
         message.functionPending = false; // User decided, no more "thinking"
-        addFunctionOutputMessage(message.functionName, Translation.tr("Command rejected by user"))
+        addFunctionOutputMessage(message.functionName, message.functionName === "set_shell_config"
+            ? Translation.tr("Change rejected by user")
+            : Translation.tr("Command rejected by user"))
     }
 
     function approveCommand(message: AiMessageData) {
         if (!message.functionPending) return;
         message.functionPending = false; // User decided, no more "thinking"
+
+        if (message.functionName === "set_shell_config") {
+            const key = String(message.functionCall.args.key);
+            Config.setNestedValue(key, message.functionCall.args.value);
+            addFunctionOutputMessage("set_shell_config", Translation.tr("Done. `%1` is now %2.").arg(key).arg(String(root.configValueAt(key))));
+            requester.makeRequest(); // let the model tell the user
+            return;
+        }
 
         const responseMessage = createFunctionOutputMessage(message.functionName, "", false);
         const id = idForMessage(responseMessage);
@@ -1113,13 +1234,28 @@ Singleton {
             addFunctionOutputMessage(name, JSON.stringify(configJson));
             requester.makeRequest();
         } else if (name === "set_shell_config") {
-            if (!args.key || !args.value) {
+            if (!args.key || args.value === undefined || args.value === null) {
                 addFunctionOutputMessage(name, Translation.tr("Invalid arguments. Must provide `key` and `value`."));
+                requester.makeRequest();
                 return;
             }
-            const key = args.key;
-            const value = args.value;
-            Config.setNestedValue(key, value);
+            const key = String(args.key);
+            if (root.protectedConfigPrefixes.some(p => key === p || key.startsWith(p + "."))) {
+                addFunctionOutputMessage(name, Translation.tr("Refused: `%1` is a protected setting that only the user can change.").arg(key));
+                requester.makeRequest();
+                return;
+            }
+            const current = root.configValueAt(key);
+            if (current === undefined || current === null || typeof current === "object") {
+                addFunctionOutputMessage(name, Translation.tr("Refused: `%1` is not a single existing setting. Use `get_shell_config` to see the real keys.").arg(key));
+                requester.makeRequest();
+                return;
+            }
+            // Nothing changes until the user approves it
+            const contentToAppend = `\n\n**${Translation.tr("Settings change request")}**\n\n\`\`\`command\n${key}: ${current} → ${args.value}\n\`\`\``;
+            message.rawContent += contentToAppend;
+            message.content += contentToAppend;
+            message.functionPending = true;
         } else if (name === "run_shell_command") {
             if (!args.command || args.command.length === 0) {
                 addFunctionOutputMessage(name, Translation.tr("Invalid arguments. Must provide `command`."));

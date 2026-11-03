@@ -271,6 +271,34 @@ AiPopup {
                         onClicked: Config.options.ai.ollama.autostart = checked
                     }
                 }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+                        StyledText {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            color: Appearance.colors.colOnLayer2
+                            text: Translation.tr("Free the GPU while a game runs")
+                        }
+                        StyledText {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            font.pixelSize: Appearance.font.pixelSize.smaller
+                            color: Ai.gameFreed ? Appearance.colors.colTertiary : Appearance.colors.colSubtext
+                            text: Ai.gameFreed
+                                ? Translation.tr("A game is running: models are unloaded.")
+                                : Translation.tr("Unloads the models when a Steam/Proton game or gamescope window opens.")
+                        }
+                    }
+                    StyledSwitch {
+                        checked: Config.options.ai.ollama.gameMode
+                        onClicked: Config.options.ai.ollama.gameMode = checked
+                    }
+                }
             }
 
             // ------------------------------------------------ GPU

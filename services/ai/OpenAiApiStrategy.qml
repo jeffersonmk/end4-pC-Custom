@@ -4,6 +4,35 @@ import qs.modules.common.functions as CF
 
 ApiStrategy {
     property bool isReasoning: false
+    // Tool calls of the response being streamed, by index. OpenAI-style servers send the
+    // arguments in fragments; Ollama sends each call whole. Finished at finish_reason / [DONE].
+    property var pendingToolCalls: ({})
+
+    function reset() {
+        isReasoning = false;
+        pendingToolCalls = ({});
+    }
+
+    // The tool call (if any) collected so far, as the app's functionCall object
+    function takeToolCall(message) {
+        const indexes = Object.keys(pendingToolCalls).sort((a, b) => a - b);
+        if (indexes.length === 0) return null;
+        const call = pendingToolCalls[indexes[0]]; // one call at a time: the app answers it, then asks again
+        pendingToolCalls = ({});
+        if (!call.name) return null;
+        let args = {};
+        try {
+            args = call.arguments && call.arguments.length > 0 ? JSON.parse(call.arguments) : {};
+        } catch (e) {
+            console.log("[AI] OpenAI: could not parse tool arguments:", call.arguments);
+        }
+        message.functionName = call.name;
+        message.functionCall = { name: call.name, args: args, id: call.id || `call_${call.name}` };
+        const shown = `\n\n[[ Function: ${call.name}(${JSON.stringify(args)}) ]]\n`;
+        message.rawContent += shown;
+        message.content += shown;
+        return message.functionCall;
+    }
     readonly property string localImagePrefix: "__LOCAL_IMAGE_FILE__:"
     
     function buildEndpoint(model: AiModel): string {
@@ -17,6 +46,7 @@ ApiStrategy {
         let formattedMessages = [
             { role: "system", content: systemPrompt }
         ];
+        let lastToolCallId = "";
 
         for (let i = 0; i < messages.length; i++) {
             const message = messages[i];
@@ -27,6 +57,29 @@ ApiStrategy {
                 imagePath = CF.FileUtils.trimFileProtocol(filePath);
             } else if (message.localFilePath && message.localFilePath.length > 0) {
                 imagePath = CF.FileUtils.trimFileProtocol(message.localFilePath);
+            }
+
+            // A function call the model made, and the answer the app gave it (OpenAI tool format)
+            if (message.role === "assistant" && message.functionCall && message.functionName.length > 0) {
+                formattedMessages.push({
+                    "role": "assistant",
+                    "content": message.rawContent,
+                    "tool_calls": [{
+                        "id": message.functionCall.id,
+                        "type": "function",
+                        "function": { "name": message.functionName, "arguments": JSON.stringify(message.functionCall.args ?? {}) }
+                    }]
+                });
+                lastToolCallId = message.functionCall.id;
+                continue;
+            }
+            if (message.role === "user" && message.functionName.length > 0) {
+                formattedMessages.push({
+                    "role": "tool",
+                    "tool_call_id": lastToolCallId,
+                    "content": message.functionResponse
+                });
+                continue;
             }
 
             if (imagePath.length > 0 && message.role === "user") {
@@ -115,7 +168,8 @@ ApiStrategy {
         // Handle special cases
         if (!cleanData || cleanData.startsWith(":")) return {};
         if (cleanData === "[DONE]") {
-            return { finished: true };
+            const call = takeToolCall(message);
+            return call ? { finished: true, functionCall: call } : { finished: true };
         }
         
         // Real stuff
@@ -131,6 +185,24 @@ ApiStrategy {
             }
 
             let newContent = "";
+
+            // Tool calls: collect the pieces, hand the whole call over when the response ends
+            const toolCalls = dataJson.choices?.[0]?.delta?.tool_calls;
+            if (toolCalls) {
+                for (let i = 0; i < toolCalls.length; i++) {
+                    const tc = toolCalls[i];
+                    const idx = tc.index ?? i;
+                    const cur = pendingToolCalls[idx] ?? { id: "", name: "", arguments: "" };
+                    if (tc.id) cur.id = tc.id;
+                    if (tc.function?.name) cur.name = tc.function.name;
+                    if (tc.function?.arguments) cur.arguments += typeof tc.function.arguments === "string" ? tc.function.arguments : JSON.stringify(tc.function.arguments);
+                    pendingToolCalls[idx] = cur;
+                }
+            }
+            if (dataJson.choices?.[0]?.finish_reason === "tool_calls") {
+                const call = takeToolCall(message);
+                if (call) return { functionCall: call, finished: true };
+            }
 
             const responseContent = dataJson.choices[0]?.delta?.content || dataJson.message?.content;
             const responseReasoning = dataJson.choices[0]?.delta?.reasoning || dataJson.choices[0]?.delta?.reasoning_content;
@@ -168,7 +240,8 @@ ApiStrategy {
             }
 
             if (dataJson.done) {
-                return { finished: true };
+                const call = takeToolCall(message);
+                return call ? { finished: true, functionCall: call } : { finished: true };
             }
             
         } catch (e) {
@@ -184,9 +257,4 @@ ApiStrategy {
         // OpenAI format doesn't need special finish handling
         return {};
     }
-    
-    function reset() {
-        isReasoning = false;
-    }
-
 }

@@ -26,6 +26,14 @@ Item {
         Ai.openCatalog();
         searchField.forceActiveFocus();
     }
+
+    // The VRAM other apps leave free changes all the time (a game, a browser...)
+    Timer {
+        interval: 15000
+        repeat: true
+        running: root.open
+        onTriggered: Ai.loadCatalog(false)
+    }
     function close() {
         if (!root.open) return;
         root.open = false;
@@ -225,9 +233,40 @@ Item {
                         font.pixelSize: Appearance.font.pixelSize.small
                         color: Appearance.colors.colOnLayer2
                         text: root.hw.gpuName
-                            ? Translation.tr("%1 · %2 VRAM · %3 RAM").arg(root.hw.gpuName).arg(root.formatGb(root.hw.vramGb ?? 0)).arg(root.formatGb(root.hw.ramGb ?? 0))
+                            ? Translation.tr("%1 · %2 VRAM · %3 RAM").arg(root.hw.gpuName).arg(root.formatGb(root.hw.vramTotalGb ?? 0)).arg(root.formatGb(root.hw.ramGb ?? 0))
                             : Translation.tr("No dedicated GPU found · %1 RAM · models will run on the CPU").arg(root.formatGb(root.hw.ramGb ?? 0))
                     }
+                }
+                RowLayout {
+                    visible: !!root.hw.gpuName && root.hw.vramFreeGb !== null && root.hw.vramFreeGb !== undefined
+                    Layout.fillWidth: true
+                    spacing: 8
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                        color: Appearance.colors.colSubtext
+                        text: (root.hw.vramOthersGb ?? 0) > 0.5
+                            ? Translation.tr("%1 of VRAM is used by other apps right now: %2 counted for the ranking").arg(root.formatGb(root.hw.vramOthersGb)).arg(root.formatGb(root.hw.vramGb ?? 0))
+                            : Translation.tr("VRAM is free: %1 counted for the ranking").arg(root.formatGb(root.hw.vramGb ?? 0))
+                    }
+                    Chip {
+                        symbol: "memory"
+                        label: Translation.tr("Free VRAM now")
+                        active: Config.options.ai.ollama.useFreeVram
+                        onClicked: {
+                            Config.options.ai.ollama.useFreeVram = !Config.options.ai.ollama.useFreeVram;
+                            Ai.loadCatalog(false);
+                        }
+                    }
+                }
+                StyledText {
+                    visible: (root.hw.calibratedBy ?? 0) > 0
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    color: Appearance.colors.colPrimary
+                    text: Translation.tr("Speeds calibrated by your benchmark of %1 model(s)").arg(root.hw.calibratedBy)
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -472,9 +511,13 @@ Item {
                                     : Translation.tr("Too big")
                             }
                             Tag {
-                                visible: row.modelData.fit !== "no"
+                                visible: row.modelData.fit !== "no" || row.modelData.measured
                                 symbol: "speed"
-                                text: Translation.tr("≈ %1 tok/s").arg(Math.round(row.modelData.tps))
+                                color: row.modelData.measured ? Appearance.colors.colPrimaryContainer : Appearance.colors.colSecondaryContainer
+                                fg: row.modelData.measured ? Appearance.colors.colOnPrimaryContainer : Appearance.colors.colOnSecondaryContainer
+                                text: row.modelData.measured
+                                    ? Translation.tr("%1 tok/s measured").arg(Math.round(row.modelData.tps))
+                                    : Translation.tr("≈ %1 tok/s").arg(Math.round(row.modelData.tps))
                             }
                             Tag {
                                 symbol: "database"

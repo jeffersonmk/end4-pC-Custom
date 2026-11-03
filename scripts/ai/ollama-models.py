@@ -3,6 +3,7 @@
 
   ollama-models.py list            one JSON line: {"running", "version", "models": [...]}
   ollama-models.py unload NAME     free the model from VRAM/RAM now
+  ollama-models.py unload-all      free every loaded model (ok even when Ollama is not running)
   ollama-models.py delete NAME     remove the model from disk
 
 Talks to the local Ollama HTTP API only (OLLAMA_HOST is honoured, default
@@ -114,8 +115,23 @@ def act(action: str, name: str) -> dict:
         return {"ok": False, "error": str(e)}
 
 
+def unload_all() -> dict:
+    try:
+        loaded = [m.get("name") or m.get("model") for m in call("/api/ps").get("models") or []]
+    except Exception:
+        return {"ok": True, "unloaded": []}  # nothing runs, nothing to free
+    done = []
+    for name in loaded:
+        if name and act("unload", name).get("ok"):
+            done.append(name)
+    return {"ok": len(done) == len(loaded), "unloaded": done}
+
+
 def main() -> None:
     cmd = sys.argv[1] if len(sys.argv) > 1 else "list"
+    if cmd == "unload-all":
+        print(json.dumps(unload_all()), flush=True)
+        return
     if cmd == "list":
         out = list_models()
     elif cmd in ("unload", "delete") and len(sys.argv) > 2:

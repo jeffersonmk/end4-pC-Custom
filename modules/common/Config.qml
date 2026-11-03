@@ -100,6 +100,9 @@ Singleton {
                     property string modelsDir: ""    // empty = ~/.ollama/models
                     property string modelsMount: ""  // must be mounted before Ollama starts ("" = no check)
                     property bool autostart: false   // start Ollama together with the shell
+                    property bool useFreeVram: true  // catalog ranking counts only the VRAM other apps leave free
+                    property bool gameMode: false    // free the GPU (unload models) while a game runs
+                    property string gamePattern: "^(steam_app_\\d+|gamescope.*)$" // window classes that count as a game
                 }
                 // Extra LOCAL models (OpenAI-compatible endpoint on localhost), e.g.
                 // { "name": "LM Studio", "model": "qwen2.5-7b", "endpoint": "http://localhost:1234/v1/chat/completions" }

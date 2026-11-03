@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Ollama model catalog ranked for THIS machine. Helper of the Intelligence "Catalog" page.
 
-  ollama-catalog.py list [--ctx N] [--refresh]   one JSON line: hardware + ranked model variants
+  ollama-catalog.py list [--ctx N] [--refresh] [--free-vram]
+                                                 one JSON line: hardware + ranked model variants
   ollama-catalog.py refine                       fetch the exact size of every tag (slow, cached;
                                                  prints one JSON progress line per model)
   ollama-catalog.py snapshot PATH                write the bundled offline catalog (maintainers)
@@ -18,7 +19,10 @@ How a variant is judged (all numbers are ESTIMATES, flagged as such in the UI):
          partial GPU + system RAM (slower)
          cpu     system RAM only
          no      does not fit at all
-  speed  tokens/s ~ 0.65 x memory bandwidth / bytes read per token (active weights for MoE)
+  speed  tokens/s ~ 0.65 x memory bandwidth / bytes read per token (active weights for MoE);
+         models you benchmarked (ollama-bench.py) show the measured speed, and the measurements
+         calibrate the GPU bandwidth used for the others
+  vram   with --free-vram only the VRAM not taken by other apps right now counts
   score  quality (parameters, popularity, recency, tools) x usability (fit and speed)
 """
 import concurrent.futures
@@ -27,6 +31,7 @@ import json
 import math
 import os
 import re
+import subprocess
 import sys
 import time
 import urllib.request
@@ -263,7 +268,39 @@ def meminfo() -> dict:
     return out
 
 
-def hardware() -> dict:
+def vram_used_bytes():
+    """Bytes of GPU memory in use right now (all apps), or None when unknown."""
+    best, used = 0, None
+    try:
+        for card in os.listdir("/sys/class/drm"):
+            base = f"/sys/class/drm/{card}/device"
+            if re.fullmatch(r"card\d+", card) and os.path.exists(base + "/mem_info_vram_total"):
+                total = int(open(base + "/mem_info_vram_total").read())
+                if total > best:
+                    best, used = total, int(open(base + "/mem_info_vram_used").read())
+    except Exception:
+        pass
+    if used is None:
+        try:
+            out = subprocess.run(["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
+                                 capture_output=True, text=True, timeout=5).stdout.split()
+            if out:
+                used = int(float(out[0])) * 1024 * 1024
+        except Exception:
+            pass
+    return used
+
+
+def ollama_vram_bytes() -> int:
+    """GPU memory held by models Ollama has loaded (it is not 'other apps')."""
+    try:
+        health = load_health_module()
+        return sum((m.get("size_vram") or 0) for m in health.api("/api/ps").get("models") or [])
+    except Exception:
+        return 0
+
+
+def hardware(free_vram: bool = False) -> dict:
     gpu_name, vram = "", 0
     try:
         health = load_health_module()
@@ -277,9 +314,16 @@ def hardware() -> dict:
     except Exception:
         pass
     mem = meminfo()
-    vram_gb = vram / GB
+    total_gb = vram / GB
+    used = vram_used_bytes() if vram else None
+    others_gb = max(0.0, ((used or 0) - ollama_vram_bytes()) / GB) if used is not None else 0.0
+    vram_gb = max(0.0, total_gb - others_gb) if free_vram else total_gb
     return {
         "gpuName": gpu_name,
+        "vramTotalGb": round(total_gb, 1),
+        "vramFreeGb": round(max(0.0, total_gb - (used or 0) / GB), 1) if used is not None else None,
+        "vramOthersGb": round(others_gb, 1),
+        "freeVramMode": free_vram,
         "vramGb": round(vram_gb, 1),
         "ramGb": round(mem.get("MemTotal", 0) / GB, 1),
         "ramAvailGb": round(mem.get("MemAvailable", 0) / GB, 1),
@@ -340,7 +384,28 @@ def usability(j: dict) -> float:
     return fit * (0.4 + 0.6 * speed)
 
 
-def build_variants(models: list, ctx: int, hw: dict) -> list:
+def bench_path() -> str:
+    return os.path.join(os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state")),
+                        "quickshell", "user", "ai", "ollama-bench.json")
+
+
+def calibration(variants: list, bench: dict) -> tuple:
+    """(factor, count): measured / estimated speed of benchmarked models that ran fully on the GPU."""
+    ratios = []
+    for v in variants:
+        b = bench.get(v["id"])
+        # tiny models are limited by overheads, not by memory bandwidth: they say nothing about big ones
+        if b and v["fit"] == "gpu" and b.get("gpuPercent", 0) >= 95 and v["estimatedTps"] > 0 and v["sizeGb"] >= 2.0:
+            ratios.append(b["tps"] / v["estimatedTps"])
+    if not ratios:
+        return 1.0, 0
+    ratios.sort()
+    mid = ratios[len(ratios) // 2]
+    return min(2.0, max(0.3, mid)), len(ratios)
+
+
+def build_variants(models: list, ctx: int, hw: dict, bench: dict, gpu_factor: float = 1.0) -> list:
+    hw = dict(hw, gpuBandwidth=hw["gpuBandwidth"] * gpu_factor)
     out = []
     for m in models:
         caps = set(m["capabilities"]) - {"cloud"}
@@ -371,6 +436,10 @@ def build_variants(models: list, ctx: int, hw: dict) -> list:
             vision = "vision" in caps or "image" in (detail or {}).get("input", "").lower()
             code = bool(re.search(r"\bcode|coder\b", m["name"] + " " + m["description"], re.I))
             q = quality(params, active, m["pulls"], m["updatedDays"], "tools" in caps)
+            measured = bench.get(key)
+            estimated_tps = j["tps"]
+            if measured:
+                j = dict(j, tps=measured["tps"])
             score = 0.0 if is_embedding else round(q * usability(j), 1)
             out.append({
                 "id": key,
@@ -389,6 +458,9 @@ def build_variants(models: list, ctx: int, hw: dict) -> list:
                 "fit": j["fit"],
                 "needGb": j["needGb"],
                 "tps": j["tps"],
+                "estimatedTps": estimated_tps,
+                "measured": measured is not None,
+                "measuredGpuPercent": measured["gpuPercent"] if measured else None,
                 "score": score,
                 "embedding": is_embedding,
             })
@@ -403,12 +475,19 @@ def build_variants(models: list, ctx: int, hw: dict) -> list:
     return out
 
 
-def list_cmd(ctx: int, force: bool) -> None:
+def list_cmd(ctx: int, force: bool, free_vram: bool) -> None:
     models, source, fetched = load_library(force)
     if not models:
         return emit({"ok": False, "error": "no-catalog"})
-    hw = hardware()
-    variants = build_variants(models, ctx, hw)
+    hw = hardware(free_vram)
+    bench = (read_json(bench_path()) or {})
+    variants = build_variants(models, ctx, hw, bench)
+    factor, count = calibration(variants, bench)
+    if count:
+        variants = build_variants(models, ctx, hw, bench, factor)
+    hw["calibratedBy"] = count
+    hw["calibrationFactor"] = round(factor, 2)
+    hw["benchmarks"] = len(bench)
     exact = sum(1 for v in variants if v["sizeExact"])
     emit({"ok": True, "source": source, "fetchedAt": fetched, "ctx": ctx, "hardware": hw,
           "variants": variants, "exactSizes": exact})
@@ -430,7 +509,7 @@ def main() -> None:
         return args[args.index(name) + 1] if name in args and args.index(name) + 1 < len(args) else default
 
     if cmd == "list":
-        list_cmd(int(opt("--ctx", "32768")), "--refresh" in args)
+        list_cmd(int(opt("--ctx", "32768")), "--refresh" in args, "--free-vram" in args)
     elif cmd == "refine":
         refine()
     elif cmd == "snapshot" and len(args) > 1:
