@@ -127,6 +127,40 @@ Singleton {
         }
     }
     property list<var> availableTools: Object.keys(root.tools["openai"])
+
+    // Function name -> the switch in Config.options.ai.functions
+    readonly property var functionSwitch: ({
+        "get_shell_config": "readConfig",
+        "set_shell_config": "editConfig",
+        "run_shell_command": "runCommands"
+    })
+
+    function isFunctionEnabled(name) {
+        const key = root.functionSwitch[name];
+        const f = Config?.options?.ai?.functions;
+        if (!key || !f) return true;
+        // The model must read the config before it edits it, so editing needs reading
+        if (name === "set_shell_config" && !f.readConfig) return false;
+        return f[key];
+    }
+
+    // Does the model accept tools? Unknown (vLLM, extra models, old Ollama) counts as yes.
+    function modelSupportsTools(modelId) {
+        const info = root.ollamaInfo[root.models[modelId]?.model ?? ""];
+        if (!info || !info.capabilitiesKnown) return true;
+        return info.capabilities.includes("tools");
+    }
+    readonly property bool currentModelSupportsTools: root.modelSupportsTools(root.currentModelId)
+
+    readonly property int functionsTotal: Object.keys(root.functionSwitch).length
+    readonly property int functionsEnabled: Object.keys(root.functionSwitch).filter(n => root.isFunctionEnabled(n)).length
+
+    // Tools really sent to the model: none when it can't use them or they are switched off
+    function effectiveTools() {
+        if (!root.currentModelSupportsTools) return [];
+        const list = root.tools["openai"][root.currentTool] ?? [];
+        return list.filter(t => root.isFunctionEnabled(t.function.name));
+    }
     property var toolDescriptions: {
         "functions": Translation.tr("Run commands and edit the shell config"),
         "search": Translation.tr("No effect on local models"),
@@ -206,42 +240,83 @@ Singleton {
         });
     }
 
+    // Details of the installed Ollama models (size, quantization, capabilities, loaded in
+    // VRAM), keyed by the raw model name. Comes from scripts/ai/ollama-models.py, which
+    // talks to the Ollama HTTP API (the same source /refresh uses to list the models).
+    property var ollamaInfo: ({})
+    property bool ollamaRunning: false
+    property string ollamaVersion: ""
+    property var ollamaModelIds: []
+    readonly property string ollamaScript: `${Directories.scriptPath}/ai/ollama-models.py`.replace(/file:\/\//, "")
+
     Process {
         id: getOllamaModels
         running: true
-        command: ["bash", "-c", `${Directories.scriptPath}/ai/show-installed-ollama-models.sh`.replace(/file:\/\//, "")]
-        stdout: SplitParser {
-            onRead: data => {
+        command: ["python3", root.ollamaScript, "list"]
+        stdout: StdioCollector {
+            onStreamFinished: {
                 try {
-                    if (data.length === 0) return;
-                    const dataJson = JSON.parse(data);
-                    root.modelList = [...root.modelList, ...dataJson];
-                    dataJson.forEach(model => {
-                        const safeModelName = root.safeModelName(model);
-                        root.addModel(safeModelName, {
-                            "name": guessModelName(model),
-                            "icon": guessModelLogo(model),
-                            "description": Translation.tr("Local Ollama model | %1").arg(model),
-                            "homepage": `https://ollama.com/library/${model}`,
-                            "endpoint": "http://localhost:11434/v1/chat/completions",
-                            "model": model,
-                            "requires_key": false,
-                            "extraParams": {
-                                "options": {
-                                    "num_ctx": Config?.options?.ai?.ollamaNumCtx ?? 32768
-                                }
-                            }
-                        })
-                    });
-
-                    root.modelList = Object.keys(root.models);
-
+                    const data = JSON.parse(text.trim().split("\n").pop());
+                    root.applyOllamaList(data);
                 } catch (e) {
                     console.log("Could not fetch Ollama models:", e);
                 }
             }
         }
     }
+
+    function applyOllamaList(data) {
+        root.ollamaRunning = data.running === true;
+        root.ollamaVersion = data.version ?? "";
+        const info = {};
+        const next = Object.assign({}, root.models);
+        // Drop the Ollama models of the previous scan so deleted ones disappear
+        root.ollamaModelIds.forEach(id => delete next[id]);
+        const ids = [];
+        (data.models ?? []).forEach(m => {
+            info[m.name] = m;
+            const id = root.safeModelName(m.name);
+            ids.push(id);
+            next[id] = aiModelComponent.createObject(root, {
+                "name": guessModelName(m.name),
+                "icon": guessModelLogo(m.name),
+                "description": Translation.tr("Local Ollama model | %1").arg(m.name),
+                "homepage": `https://ollama.com/library/${m.name}`,
+                "endpoint": "http://localhost:11434/v1/chat/completions",
+                "model": m.name,
+                "requires_key": false,
+                "extraParams": {
+                    "options": {
+                        "num_ctx": Config?.options?.ai?.ollamaNumCtx ?? 32768
+                    }
+                }
+            });
+        });
+        root.ollamaInfo = info;
+        root.ollamaModelIds = ids;
+        root.models = next;
+        root.modelList = Object.keys(next);
+    }
+
+    Process {
+        id: ollamaAction
+        function run(action, name) {
+            ollamaAction.exec(["python3", root.ollamaScript, action, name]);
+        }
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let ok = false;
+                try { ok = JSON.parse(text.trim().split("\n").pop()).ok === true; } catch (e) {}
+                if (!ok) root.addMessage(Translation.tr("The Ollama request failed. Is Ollama running?"), root.interfaceRole);
+                root.refreshLocalModels();
+            }
+        }
+    }
+
+    // Free a model from VRAM/RAM right now (it stays installed)
+    function unloadOllamaModel(name) { ollamaAction.run("unload", name); }
+    // Remove a model from disk
+    function deleteOllamaModel(name) { ollamaAction.run("delete", name); }
 
     Process {
         id: getVllmModels
@@ -409,14 +484,14 @@ Singleton {
         return root.temperature;
     }
 
-    function setTemperature(value) {
-        if (value == NaN || value < 0 || value > 2) {
+    function setTemperature(value, feedback = true) {
+        if (isNaN(value) || value < 0 || value > 2) {
             root.addMessage(Translation.tr("Temperature must be between 0 and 2"), Ai.interfaceRole);
             return;
         }
         Persistent.states.ai.temperature = value;
         root.temperature = value;
-        root.addMessage(Translation.tr("Temperature set to %1").arg(value), Ai.interfaceRole);
+        if (feedback) root.addMessage(Translation.tr("Temperature set to %1").arg(value), Ai.interfaceRole);
     }
 
     function printTemperature() {
@@ -470,7 +545,7 @@ Singleton {
             const endpoint = root.currentApiStrategy.buildEndpoint(model);
             const messageArray = root.messageIDs.map(id => root.messageByID[id]);
             const filteredMessageArray = messageArray.filter(message => message.role !== Ai.interfaceRole);
-            const data = root.currentApiStrategy.buildRequestData(model, filteredMessageArray, root.systemPrompt, root.temperature, root.tools["openai"][root.currentTool] ?? [], root.pendingFilePath);
+            const data = root.currentApiStrategy.buildRequestData(model, filteredMessageArray, root.systemPrompt, root.temperature, root.effectiveTools(), root.pendingFilePath);
             // console.log("[Ai] Request data: ", JSON.stringify(data, null, 2));
 
             let requestHeaders = {
@@ -655,6 +730,11 @@ Singleton {
     }
 
     function handleFunctionCall(name, args: var, message: AiMessageData) {
+        if (!root.isFunctionEnabled(name)) {
+            // The model called something the user switched off (or never offered)
+            addFunctionOutputMessage(name, Translation.tr("This function is turned off in the Functions menu."));
+            return;
+        }
         if (name === "switch_to_search_mode") {
             const modelId = root.currentModelId;
             root.currentTool = "search"
