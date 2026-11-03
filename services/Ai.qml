@@ -449,6 +449,10 @@ Singleton {
         root.ollamaQueue = [];
         root.ollamaBusy = "";
         root.ollamaMessage = message ?? "";
+        if ((message ?? "") !== "" && root.pullQueue.length > 0) {
+            root.pullQueue.forEach(n => root.setPull(n, { state: "error", error: message }));
+            root.pullQueue = [];
+        }
         root.refreshLocalModels();
         root.refreshOllamaDisks();
         ollamaRecheck.restart(); // a status check that was already running may predate the change
@@ -535,6 +539,172 @@ Singleton {
         } });
         if (wasRunning) steps.push({ busy: "starting", args: ["start", "--models-dir", path, "--require-mount", mount] });
         root.runOllamaJob(steps);
+    }
+
+
+    // ---- Model catalog (scripts/ai/ollama-catalog.py) and downloads (scripts/ai/ollama-pull.py) ----
+    readonly property string catalogScript: `${Directories.scriptPath}/ai/ollama-catalog.py`.replace(/file:\/\//, "")
+    readonly property string pullScript: `${Directories.scriptPath}/ai/ollama-pull.py`.replace(/file:\/\//, "")
+
+    property var catalog: ({})            // { hardware, variants, source, fetchedAt, exactSizes }
+    property bool catalogLoading: false
+    property string catalogError: ""
+    property int catalogCtx: Config?.options?.ai?.ollamaNumCtx ?? 32768
+    property real refineDone: 0
+    property real refineTotal: 0
+    property bool refineRan: false
+
+    // Free space of the disk that holds the models folder (-1 = not known yet)
+    readonly property real modelsDiskFree: {
+        const d = root.ollamaDisks.find(x => x.path === root.ollamaModelsDir);
+        return d ? d.free : -1;
+    }
+
+    function loadCatalog(force) {
+        if (catalogProc.running) return;
+        root.catalogLoading = true;
+        root.catalogError = "";
+        const args = ["python3", root.catalogScript, "list", "--ctx", String(root.catalogCtx)];
+        if (force) args.push("--refresh");
+        catalogProc.exec(args);
+    }
+
+    function openCatalog() {
+        root.loadCatalog(false);
+        root.refreshOllamaHealth();
+        root.refreshOllamaDisks();
+        if (!root.refineRan) {
+            root.refineRan = true;
+            refineProc.exec(["python3", root.catalogScript, "refine"]);
+        }
+    }
+
+    function setCatalogCtx(ctx) {
+        root.catalogCtx = ctx;
+        root.loadCatalog(false);
+    }
+
+    Process {
+        id: catalogProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.catalogLoading = false;
+                try {
+                    const r = JSON.parse(text.trim().split("\n").pop());
+                    if (r.ok) root.catalog = r;
+                    else root.catalogError = Translation.tr("Could not load the model catalog.");
+                } catch (e) {
+                    root.catalogError = Translation.tr("Could not load the model catalog.");
+                }
+            }
+        }
+    }
+
+    Process {
+        id: refineProc
+        stdout: SplitParser {
+            onRead: line => {
+                try {
+                    const r = JSON.parse(line);
+                    if (r.phase === "start" || r.phase === "refine") {
+                        root.refineTotal = r.total;
+                        root.refineDone = r.done ?? 0;
+                    }
+                } catch (e) {}
+            }
+        }
+        onExited: {
+            root.refineTotal = 0;
+            root.loadCatalog(false); // now with the exact sizes
+        }
+    }
+
+    // state per model name: "queued" | "pulling" | "done" | "error"
+    property var pulls: ({})
+    property var pullQueue: []
+    property string pullActive: ""
+    property bool pullCancelled: false
+    property string pullLastLine: ""
+
+    function setPull(name, patch) {
+        const next = Object.assign({}, root.pulls);
+        next[name] = Object.assign({}, next[name] ?? {}, patch);
+        root.pulls = next;
+    }
+    function clearPull(name) {
+        const next = Object.assign({}, root.pulls);
+        delete next[name];
+        root.pulls = next;
+    }
+
+    function pullModel(name, sizeGb) {
+        const state = root.pulls[name]?.state;
+        if (state === "queued" || state === "pulling") return;
+        root.setPull(name, { state: "queued", percent: 0, completed: 0, total: 0, speed: 0, error: "", sizeBytes: Math.round(sizeGb * 1024 * 1024 * 1024) });
+        root.pullQueue = [...root.pullQueue, name];
+        root.drainPulls(false);
+    }
+
+    function cancelPull(name) {
+        if (root.pullActive === name) {
+            root.pullCancelled = true;
+            pullProc.running = false; // Ollama keeps the partial files: pulling again resumes
+        } else {
+            root.pullQueue = root.pullQueue.filter(n => n !== name);
+            root.clearPull(name);
+        }
+    }
+
+    function drainPulls(serverReady) {
+        if (root.pullActive !== "" || root.pullQueue.length === 0) return;
+        if (!serverReady && root.ollamaHealth.running !== true) {
+            if (root.ollamaBusy === "") {
+                // Ollama is stopped: start it (the shell owns it), then go on
+                root.runOllamaJob([
+                    { busy: "starting", args: ["start", "--ok-if-running", "--models-dir", root.ollamaModelsDir, "--require-mount", Config?.options?.ai?.ollama?.modelsMount ?? ""] },
+                    { fn: () => root.drainPulls(true) }
+                ]);
+            }
+            return;
+        }
+        const name = root.pullQueue[0];
+        root.pullQueue = root.pullQueue.slice(1);
+        root.pullActive = name;
+        root.pullCancelled = false;
+        root.pullLastLine = "";
+        root.setPull(name, { state: "pulling" });
+        pullProc.exec(["python3", root.pullScript, name, "--models-dir", root.ollamaModelsDir, "--size-bytes", String(root.pulls[name].sizeBytes ?? 0)]);
+    }
+
+    function pullErrorText(r) {
+        if (r.error === "no-space") return Translation.tr("Not enough free space on the models disk.");
+        if (r.error === "interrupted" || (r.error ?? "").startsWith("connection")) return Translation.tr("The download was interrupted. Click again to resume it.");
+        return Translation.tr("Download failed: %1").arg(r.error ?? "?");
+    }
+
+    Process {
+        id: pullProc
+        stdout: SplitParser {
+            onRead: line => {
+                root.pullLastLine = line;
+                try {
+                    const r = JSON.parse(line);
+                    if (r.phase === "pull") root.setPull(root.pullActive, { percent: r.percent, completed: r.completed, total: r.total, speed: r.speed });
+                } catch (e) {}
+            }
+        }
+        onExited: (exitCode, exitStatus) => {
+            const name = root.pullActive;
+            let r = { ok: false, error: "interrupted" };
+            try { r = JSON.parse(root.pullLastLine); } catch (e) {}
+            root.pullActive = "";
+            if (root.pullCancelled) root.clearPull(name);
+            else if (r.ok === true) root.setPull(name, { state: "done", percent: 100 });
+            else root.setPull(name, { state: "error", error: root.pullErrorText(r) });
+            root.refreshLocalModels();
+            root.refreshOllamaDisks();
+            root.drainPulls(false);
+        }
     }
 
     function autostartOllamaIfWanted() {

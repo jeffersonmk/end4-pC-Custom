@@ -17,6 +17,7 @@ AiPopup {
 
     property string confirmDelete: "" // raw name of the model waiting for a second click
     signal manageRequested()
+    signal catalogRequested()
 
     function formatBytes(n) {
         if (!n || n <= 0) return "";
@@ -356,5 +357,35 @@ AiPopup {
                 }
             }
         }
+    }
+
+    RippleButton {
+        Layout.fillWidth: true
+        implicitHeight: 36
+        topPadding: 0
+        bottomPadding: 0
+        buttonRadius: Appearance.rounding.small
+        colBackground: Appearance.colors.colLayer2
+        colBackgroundHover: Appearance.colors.colLayer2Hover
+        onClicked: root.catalogRequested()
+        contentItem: RowLayout {
+            spacing: 6
+            Item { Layout.fillWidth: true }
+            MaterialSymbol {
+                Layout.alignment: Qt.AlignVCenter
+                text: "download"
+                iconSize: Appearance.font.pixelSize.larger
+                color: Appearance.colors.colOnLayer2
+            }
+            StyledText {
+                Layout.alignment: Qt.AlignVCenter
+                Layout.bottomMargin: 2
+                text: Translation.tr("Browse and download models")
+                font.pixelSize: Appearance.font.pixelSize.small
+                color: Appearance.colors.colOnLayer2
+            }
+            Item { Layout.fillWidth: true }
+        }
+        StyledToolTip { text: Translation.tr("Ranked for your PC: best models first") }
     }
 }

@@ -203,11 +203,13 @@ def wait_api(up: bool, seconds: float) -> bool:
     return (api_version() is not None) == up
 
 
-def start(models_dir: str, require_mount: str) -> dict:
+def start(models_dir: str, require_mount: str, ok_if_running: bool = False) -> dict:
     binary = shutil.which("ollama")
     if not binary:
         return {"ok": False, "error": "not-installed"}
     if api_version() is not None:
+        if ok_if_running:
+            return {"ok": True, "already": True}
         st = status()
         return {"ok": False, "error": "already-running", "owner": st["owner"]}
     if require_mount and not os.path.ismount(require_mount):
@@ -444,7 +446,7 @@ def main() -> None:
     if cmd == "status":
         emit(status())
     elif cmd == "start":
-        emit(start(opt("--models-dir"), opt("--require-mount")))
+        emit(start(opt("--models-dir"), opt("--require-mount"), "--ok-if-running" in args))
     elif cmd == "stop":
         emit(stop())
     elif cmd == "disks":

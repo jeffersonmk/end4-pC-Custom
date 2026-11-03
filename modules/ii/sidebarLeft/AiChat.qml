@@ -53,7 +53,12 @@ Item {
             event.accepted = true;
             return;
         }
-        if (!root.anyPopupOpen) messageInputField.forceActiveFocus();
+        if (event.key === Qt.Key_Escape && catalogPage.open) {
+            catalogPage.close();
+            event.accepted = true;
+            return;
+        }
+        if (!root.anyPopupOpen && !catalogPage.open) messageInputField.forceActiveFocus();
         if (event.modifiers === Qt.NoModifier) {
             if (event.key === Qt.Key_PageUp) {
                 messageListView.contentY = Math.max(0, messageListView.contentY - messageListView.height / 2);
@@ -989,6 +994,17 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
             modelPicker.close();
             ollamaPanel.show();
         }
+        onCatalogRequested: {
+            modelPicker.close();
+            catalogPage.show();
+        }
+    }
+
+    AiCatalog {
+        id: catalogPage
+        anchors.fill: parent
+        onClosed: root.inputField.forceActiveFocus()
+        onManageRequested: ollamaPanel.show()
     }
 
     AiOllamaPanel {
