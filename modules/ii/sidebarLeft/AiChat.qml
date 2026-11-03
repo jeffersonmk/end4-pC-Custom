@@ -472,7 +472,8 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
                 shown: Ai.messageIDs.length === 0
                 icon: "neurology"
                 title: Translation.tr("Large language models")
-                description: Translation.tr("Local models only (Ollama / vLLM)\nClick the model name above to choose · /refresh to rescan\nCtrl+O to expand sidebar\nCtrl+P to pin sidebar\nCtrl+D to detach sidebar")
+                description: Translation.tr("Local models only (Ollama / vLLM)\nClick the model name above to choose\n/refresh to rescan\n\nCtrl+O to expand sidebar\nCtrl+P to pin sidebar\nCtrl+D to detach sidebar")
+                descriptionHorizontalAlignment: Text.AlignHCenter
                 shape: MaterialShape.Shape.PixelCircle
             }
 
@@ -485,9 +486,17 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
         RowLayout { // Action buttons (same as the /commands)
             id: actionToolbar
             Layout.fillWidth: true
+            Layout.minimumWidth: 0 // never push the chat wider than the sidebar: shrink the labels instead
             spacing: 4
 
+            // Narrow sidebar: first "Clear" keeps only its icon, then every button does
+            readonly property real fullWidth: attachBtn.fullWidth + promptBtn.fullWidth + saveBtn.fullWidth + loadBtn.fullWidth + clearBtn.fullWidth + 5 * spacing
+            readonly property bool clearCompact: width < fullWidth
+            readonly property bool allCompact: width < fullWidth - clearBtn.fullWidth + clearBtn.compactWidth
+
             AiToolbarButton {
+                id: attachBtn
+                showLabel: !actionToolbar.allCompact
                 symbol: "attach_file"
                 label: Translation.tr("Attach")
                 tooltipText: Translation.tr("Attach an image / file")
@@ -498,6 +507,8 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
                 }
             }
             AiToolbarButton {
+                id: promptBtn
+                showLabel: !actionToolbar.allCompact
                 symbol: "description"
                 label: Translation.tr("Prompt")
                 tooltipText: Translation.tr("Choose the system prompt")
@@ -507,6 +518,8 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
                 }
             }
             AiToolbarButton {
+                id: saveBtn
+                showLabel: !actionToolbar.allCompact
                 symbol: "save"
                 label: Translation.tr("Save")
                 tooltipText: Translation.tr("Save this chat")
@@ -517,6 +530,8 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
                 }
             }
             AiToolbarButton {
+                id: loadBtn
+                showLabel: !actionToolbar.allCompact
                 symbol: "folder_open"
                 label: Translation.tr("Load")
                 tooltipText: Translation.tr("Load a saved chat")
@@ -529,6 +544,8 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
                 Layout.fillWidth: true
             }
             AiToolbarButton {
+                id: clearBtn
+                showLabel: !actionToolbar.clearCompact
                 symbol: "delete_sweep"
                 label: Translation.tr("Clear")
                 tooltipText: Translation.tr("Clear chat history")

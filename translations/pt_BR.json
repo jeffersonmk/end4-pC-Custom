@@ -887,7 +887,6 @@
   "Load a saved chat": "Carregar um chat salvo",
   "Loaded %1": "Carregado %1",
   "Local models": "Modelos locais",
-  "Local models only (Ollama / vLLM)\nClick the model name above to choose · /refresh to rescan\nCtrl+O to expand sidebar\nCtrl+P to pin sidebar\nCtrl+D to detach sidebar": "Somente modelos locais (Ollama / vLLM)\nClique no nome do modelo acima para escolher · /refresh para reescanear\nCtrl+O para expandir a barra lateral\nCtrl+P para fixar a barra lateral\nCtrl+D para destacar a barra lateral",
   "Local models only (Ollama / vLLM)\nClick to choose the model": "Somente modelos locais (Ollama / vLLM)\nClique para escolher o modelo",
   "Local vLLM model | %1": "Modelo local vLLM | %1",
   "Lower values give focused, repeatable answers; higher values give more varied ones. Applies to the next message.": "Valores baixos dão respostas focadas e repetíveis; valores altos dão respostas mais variadas. Vale a partir da próxima mensagem.",
@@ -1060,5 +1059,6 @@
   "Start Ollama first.": "Inicie o Ollama primeiro.",
   "The benchmark failed: %1": "O benchmark falhou: %1",
   "Unloads the models when a Steam/Proton game or gamescope window opens.": "Descarrega os modelos quando abre um jogo do Steam/Proton ou uma janela do gamescope.",
-  "VRAM is free: %1 counted for the ranking": "A VRAM está livre: %1 contam para o ranking"
+  "VRAM is free: %1 counted for the ranking": "A VRAM está livre: %1 contam para o ranking",
+  "Local models only (Ollama / vLLM)\nClick the model name above to choose\n/refresh to rescan\n\nCtrl+O to expand sidebar\nCtrl+P to pin sidebar\nCtrl+D to detach sidebar": "Somente modelos locais (Ollama / vLLM)\nClique no nome do modelo acima para escolher\n/refresh para reescanear\n\nCtrl+O para expandir a barra lateral\nCtrl+P para fixar a barra lateral\nCtrl+D para destacar a barra lateral"
 }

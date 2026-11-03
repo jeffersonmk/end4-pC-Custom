@@ -11,6 +11,10 @@ RippleButton {
     property string tooltipText: label
     property bool showLabel: true
 
+    // Width with the label and without it: the toolbar uses them to decide how much to show
+    readonly property real fullWidth: 2 * 10 + Appearance.font.pixelSize.larger + 5 + labelMeasure.implicitWidth
+    readonly property real compactWidth: 2 * 8 + Appearance.font.pixelSize.larger
+
     implicitHeight: 32
     topPadding: 0
     bottomPadding: 0
@@ -38,6 +42,13 @@ RippleButton {
             font.pixelSize: Appearance.font.pixelSize.small
             color: root.toggled ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer2
         }
+    }
+
+    StyledText {
+        id: labelMeasure
+        visible: false
+        text: root.label
+        font.pixelSize: Appearance.font.pixelSize.small
     }
 
     StyledToolTip {

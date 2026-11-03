@@ -28,6 +28,7 @@ Item {
 
     ColumnLayout {
         anchors.centerIn: parent
+        width: Math.min(implicitWidth, root.width - 32) // long descriptions wrap instead of touching the edges
         spacing: 5
 
         MaterialShapeWrappedMaterialSymbol {
@@ -54,6 +55,7 @@ Item {
             id: widgetDescriptionText
             visible: description !== ""
             Layout.fillWidth: true
+            Layout.topMargin: 6
             font.pixelSize: Appearance.font.pixelSize.small
             color: Appearance.m3colors.m3outline
             horizontalAlignment: Text.AlignLeft
