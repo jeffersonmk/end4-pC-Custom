@@ -30,9 +30,10 @@ Item {
         }
     }
 
-    readonly property bool anyPopupOpen: modelPicker.open || toolsPicker.open || tempPicker.open || promptPicker.open || savePicker.open || loadPicker.open
+    readonly property bool anyPopupOpen: modelPicker.open || ollamaPanel.open || toolsPicker.open || tempPicker.open || promptPicker.open || savePicker.open || loadPicker.open
     function closePopups() {
         modelPicker.close();
+        ollamaPanel.close();
         toolsPicker.close();
         tempPicker.close();
         promptPicker.close();
@@ -982,6 +983,16 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
     // ---- Popups (cards over the chat) ----
     AiModelPicker {
         id: modelPicker
+        anchors.fill: parent
+        onClosed: root.inputField.forceActiveFocus()
+        onManageRequested: {
+            modelPicker.close();
+            ollamaPanel.show();
+        }
+    }
+
+    AiOllamaPanel {
+        id: ollamaPanel
         anchors.fill: parent
         onClosed: root.inputField.forceActiveFocus()
     }

@@ -178,9 +178,14 @@ Singleton {
     // Filled at runtime with local models (Ollama, vLLM, local extraModels)
     property var models: ({})
     property var modelList: Object.keys(root.models)
+    // Embedding models (e.g. all-minilm) are installed for other tools and can't chat
+    function isChatModel(modelId) {
+        const info = root.ollamaInfo[root.models[modelId]?.model ?? ""];
+        return !(info && info.capabilitiesKnown && info.capabilities.includes("embedding"));
+    }
     property var currentModelId: {
         const saved = Persistent.states?.ai?.model;
-        return (saved && models[saved]) ? saved : modelList[0];
+        return (saved && models[saved]) ? saved : (modelList.find(id => root.isChatModel(id)) ?? "");
     }
 
     property ApiStrategy currentApiStrategy: openaiApiStrategy.createObject(this)
@@ -199,6 +204,7 @@ Singleton {
         function onReadyChanged() {
             if (!Config.ready) return;
             root.addUserModels()
+            root.autostartOllamaIfWanted()
         }
     }
 
@@ -351,7 +357,194 @@ Singleton {
         }
     }
 
+
+    // ---- Ollama server managed by the shell (scripts/ai/ollama-health.py) ----
+    readonly property string healthScript: `${Directories.scriptPath}/ai/ollama-health.py`.replace(/file:\/\//, "")
+    readonly property string ollamaDefaultDir: `${Quickshell.env("HOME")}/.ollama/models`
+    readonly property string ollamaModelsDir: Config?.options?.ai?.ollama?.modelsDir || root.ollamaDefaultDir
+
+    property var ollamaHealth: ({})      // status: running, owner, version, runners, devices, hint...
+    property var ollamaDisks: []         // disks where the models can be stored
+    property var ollamaFound: []         // folders that hold models ({path, models, bytes})
+    property string ollamaBusy: ""       // "", "starting", "stopping", "moving"
+    property real ollamaMoveProgress: 0
+    property string ollamaMessage: ""    // last error, shown in the Ollama card
+    property bool wantAutostart: false
+
+    function refreshOllamaHealth() {
+        if (healthProc.running) return;
+        healthProc.running = true;
+    }
+    function refreshOllamaDisks() {
+        if (!disksProc.running) disksProc.running = true;
+        if (!scanProc.running) scanProc.running = true;
+    }
+
+    Process {
+        id: healthProc
+        command: ["python3", root.healthScript, "status"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    root.ollamaHealth = JSON.parse(text.trim().split("\n").pop());
+                } catch (e) {
+                    console.log("Could not read the Ollama status:", e);
+                }
+                if (root.wantAutostart) {
+                    root.wantAutostart = false;
+                    if (root.ollamaHealth.installed && !root.ollamaHealth.running) root.startOllama();
+                }
+            }
+        }
+    }
+    Process {
+        id: disksProc
+        command: ["python3", root.healthScript, "disks"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { root.ollamaDisks = JSON.parse(text.trim().split("\n").pop()).disks ?? []; } catch (e) {}
+            }
+        }
+    }
+    Process {
+        id: scanProc
+        command: ["python3", root.healthScript, "scan", root.ollamaModelsDir]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { root.ollamaFound = JSON.parse(text.trim().split("\n").pop()).found ?? []; } catch (e) {}
+            }
+        }
+    }
+
+    function ollamaErrorText(r) {
+        switch (r.error) {
+        case "not-installed": return Translation.tr("Ollama is not installed.");
+        case "already-running": return r.owner === "system"
+            ? Translation.tr("Ollama is already running as the system service. Stop it with `sudo systemctl stop ollama` to let the shell manage it.")
+            : Translation.tr("Ollama is already running (not started by the shell).");
+        case "disk-not-mounted": return Translation.tr("The disk %1 is not mounted. Unlock/mount it, then start Ollama again.").arg(r.mount ?? "");
+        case "did-not-start": return Translation.tr("Ollama did not start. Check it with `journalctl --user -u shell-ollama`.");
+        case "did-not-stop": return Translation.tr("Ollama did not stop in time.");
+        case "not-owned": return Translation.tr("This Ollama was not started by the shell, so the shell won't stop it.");
+        case "not-enough-space": return Translation.tr("Not enough free space on the new disk.");
+        case "verify-failed": case "copy-failed": return Translation.tr("Copying the models failed. Nothing was deleted from the old folder.");
+        case "ollama-running": return Translation.tr("Stop Ollama before moving the models.");
+        case "rsync-missing": return Translation.tr("`rsync` is needed to move the models.");
+        default: return Translation.tr("Ollama request failed: %1").arg(r.error ?? "?");
+        }
+    }
+
+    // Small job queue: each step is { busy, args } (runs the helper) or { fn } (runs QML code)
+    property var ollamaQueue: []
+    property string ollamaLastLine: ""
+
+    function runOllamaJob(steps) {
+        if (root.ollamaBusy !== "") return;
+        root.ollamaMessage = "";
+        root.ollamaQueue = steps;
+        root.nextOllamaStep();
+    }
+
+    function finishOllamaJob(message) {
+        root.ollamaQueue = [];
+        root.ollamaBusy = "";
+        root.ollamaMessage = message ?? "";
+        root.refreshLocalModels();
+        root.refreshOllamaDisks();
+        ollamaRecheck.restart(); // a status check that was already running may predate the change
+    }
+
+    Timer {
+        id: ollamaRecheck
+        interval: 1500
+        onTriggered: root.refreshOllamaHealth()
+    }
+
+    function nextOllamaStep() {
+        const q = root.ollamaQueue;
+        if (q.length === 0) {
+            root.finishOllamaJob("");
+            return;
+        }
+        const step = q[0];
+        root.ollamaQueue = q.slice(1);
+        if (step.fn) {
+            step.fn();
+            root.nextOllamaStep();
+            return;
+        }
+        root.ollamaBusy = step.busy;
+        root.ollamaMoveProgress = 0;
+        root.ollamaLastLine = "";
+        ollamaJob.exec(["python3", root.healthScript, ...step.args]);
+    }
+
+    Process {
+        id: ollamaJob
+        stdout: SplitParser {
+            onRead: line => {
+                root.ollamaLastLine = line;
+                try {
+                    const r = JSON.parse(line);
+                    if (r.phase === "copy" && r.percent !== undefined) root.ollamaMoveProgress = r.percent / 100;
+                } catch (e) {}
+            }
+        }
+        onExited: (exitCode, exitStatus) => {
+            let r = { ok: false, error: "no-answer" };
+            try { r = JSON.parse(root.ollamaLastLine); } catch (e) {}
+            if (r.ok === true) root.nextOllamaStep();
+            else root.finishOllamaJob(root.ollamaErrorText(r));
+        }
+    }
+
+    function startOllama() {
+        root.runOllamaJob([{
+            busy: "starting",
+            args: ["start", "--models-dir", root.ollamaModelsDir, "--require-mount", Config?.options?.ai?.ollama?.modelsMount ?? ""]
+        }]);
+    }
+
+    function stopOllama() {
+        root.runOllamaJob([{ busy: "stopping", args: ["stop"] }]);
+    }
+
+    function restartOllama() {
+        root.runOllamaJob([
+            { busy: "stopping", args: ["stop"] },
+            { busy: "starting", args: ["start", "--models-dir", root.ollamaModelsDir, "--require-mount", Config?.options?.ai?.ollama?.modelsMount ?? ""] }
+        ]);
+    }
+
+    // Store the models on another disk. Restarts Ollama if the shell runs it; optionally moves
+    // the models already downloaded (copy, verify, then delete the old copy).
+    function setModelsDisk(path, mount, moveExisting) {
+        const h = root.ollamaHealth;
+        if (h.running && h.owner !== "shell") {
+            root.ollamaMessage = root.ollamaErrorText({ error: "already-running", owner: h.owner });
+            return;
+        }
+        const wasRunning = h.running === true;
+        const oldDir = root.ollamaModelsDir;
+        const steps = [];
+        if (wasRunning) steps.push({ busy: "stopping", args: ["stop"] });
+        if (moveExisting) steps.push({ busy: "moving", args: ["move", oldDir, path] });
+        steps.push({ fn: () => {
+            Config.options.ai.ollama.modelsDir = path === root.ollamaDefaultDir ? "" : path;
+            Config.options.ai.ollama.modelsMount = mount;
+        } });
+        if (wasRunning) steps.push({ busy: "starting", args: ["start", "--models-dir", path, "--require-mount", mount] });
+        root.runOllamaJob(steps);
+    }
+
+    function autostartOllamaIfWanted() {
+        if (!(Config?.options?.ai?.ollama?.autostart ?? false)) return;
+        root.wantAutostart = true;
+        root.refreshOllamaHealth();
+    }
+
     function refreshLocalModels() {
+        root.refreshOllamaHealth();
         getOllamaModels.running = false;
         getOllamaModels.running = true;
         getVllmModels.running = false;
@@ -454,7 +647,7 @@ Singleton {
     })
 
     function getModel() {
-        return models[currentModelId] ?? models[modelList[0]] ?? root.noModelPlaceholder;
+        return models[currentModelId] ?? root.noModelPlaceholder;
     }
 
     function setModel(modelId, feedback = true, setPersistentState = true) {
@@ -463,6 +656,10 @@ Singleton {
         const matchedModelId = modelList.find(id => id.toLowerCase() === modelId.toLowerCase())
         if (matchedModelId !== undefined) {
             modelId = matchedModelId
+            if (!root.isChatModel(modelId)) {
+                if (feedback) root.addMessage(Translation.tr("%1 is an embedding model and can't be used for chat.").arg(models[modelId].name), root.interfaceRole);
+                return;
+            }
             const model = models[modelId]
             if (setPersistentState) Persistent.states.ai.model = modelId;
             if (feedback) root.addMessage(Translation.tr("Model set to %1").arg(model.name), root.interfaceRole);

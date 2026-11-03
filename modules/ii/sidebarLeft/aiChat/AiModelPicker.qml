@@ -16,6 +16,7 @@ AiPopup {
     icon: "neurology"
 
     property string confirmDelete: "" // raw name of the model waiting for a second click
+    signal manageRequested()
 
     function formatBytes(n) {
         if (!n || n <= 0) return "";
@@ -32,6 +33,25 @@ AiPopup {
         RippleButton {
             implicitWidth: 30
             implicitHeight: 30
+            topPadding: 0
+            bottomPadding: 0
+            buttonRadius: Appearance.rounding.full
+            colBackground: "transparent"
+            onClicked: root.manageRequested()
+            contentItem: MaterialSymbol {
+                anchors.centerIn: parent
+                horizontalAlignment: Text.AlignHCenter
+                text: "settings"
+                iconSize: Appearance.font.pixelSize.larger
+                color: Appearance.colors.colOnLayer3
+            }
+            StyledToolTip { text: Translation.tr("Ollama server, GPU and model disk") }
+        },
+        RippleButton {
+            implicitWidth: 30
+            implicitHeight: 30
+            topPadding: 0
+            bottomPadding: 0
             buttonRadius: Appearance.rounding.full
             colBackground: "transparent"
             onClicked: Ai.refreshLocalModels()
@@ -89,12 +109,44 @@ AiPopup {
             font.pixelSize: Appearance.font.pixelSize.smaller
             color: Appearance.colors.colSubtext
             text: {
+                if (Ai.ollamaBusy === "starting") return Translation.tr("Starting Ollama…");
                 if (!Ai.ollamaRunning)
-                    return Translation.tr("Ollama is not running. Start it with `ollama serve`, then rescan.");
+                    return Translation.tr("Ollama is not running.");
                 const infos = Object.values(Ai.ollamaInfo);
                 const loaded = infos.filter(i => i.loaded).length;
                 return Translation.tr("Ollama %1 running · %2 installed · %3 loaded").arg(Ai.ollamaVersion).arg(infos.length).arg(loaded);
             }
+        }
+    }
+
+    RippleButton {
+        visible: !Ai.ollamaRunning && Ai.ollamaHealth.installed !== false
+        enabled: Ai.ollamaBusy === ""
+        Layout.fillWidth: true
+        implicitHeight: 34
+        topPadding: 0
+        bottomPadding: 0
+        buttonRadius: Appearance.rounding.small
+        colBackground: Appearance.colors.colPrimaryContainer
+        colBackgroundHover: Appearance.colors.colPrimaryContainerHover
+        onClicked: Ai.startOllama()
+        contentItem: RowLayout {
+            spacing: 6
+            Item { Layout.fillWidth: true }
+            MaterialSymbol {
+                Layout.alignment: Qt.AlignVCenter
+                text: "play_arrow"
+                iconSize: Appearance.font.pixelSize.larger
+                color: Appearance.colors.colOnPrimaryContainer
+            }
+            StyledText {
+                Layout.alignment: Qt.AlignVCenter
+                Layout.bottomMargin: 2
+                text: Translation.tr("Start Ollama")
+                font.pixelSize: Appearance.font.pixelSize.small
+                color: Appearance.colors.colOnPrimaryContainer
+            }
+            Item { Layout.fillWidth: true }
         }
     }
 
@@ -130,16 +182,19 @@ AiPopup {
             readonly property var info: Ai.ollamaInfo[aiModel?.model ?? ""] ?? null
             readonly property bool active: Ai.currentModelId === modelData
             readonly property bool confirming: info !== null && root.confirmDelete === info.name
+            readonly property bool chatCapable: Ai.isChatModel(modelData)
             width: ListView.view.width
             implicitHeight: rowLayout.implicitHeight + 16
+            opacity: chatCapable ? 1 : 0.7
             radius: Appearance.rounding.small
             color: active ? Appearance.colors.colSecondaryContainer
-                : rowMouse.containsMouse ? Appearance.colors.colLayer3Hover : "transparent"
+                : rowMouse.containsMouse && chatCapable ? Appearance.colors.colLayer3Hover : "transparent"
 
             MouseArea {
                 id: rowMouse
                 anchors.fill: parent
                 hoverEnabled: true
+                enabled: row.chatCapable
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
                     Ai.setModel(row.modelData, false);
@@ -199,6 +254,13 @@ AiPopup {
                             fg: Appearance.colors.colOnPrimaryContainer
                         }
                         Badge {
+                            visible: !row.chatCapable
+                            icon: "data_array"
+                            text: Translation.tr("Embedding (not for chat)")
+                            color: Appearance.colors.colTertiaryContainer
+                            fg: Appearance.m3colors.m3onTertiaryContainer
+                        }
+                        Badge {
                             visible: (row.info?.capabilities ?? []).includes("tools")
                             icon: "service_toolbox"
                             text: Translation.tr("Tools")
@@ -216,7 +278,7 @@ AiPopup {
                         Badge {
                             visible: (row.info?.contextLength ?? 0) > 0
                             icon: "text_fields"
-                            text: Translation.tr("%1k ctx").arg(Math.round((row.info?.contextLength ?? 0) / 1024))
+                            text: (row.info?.contextLength ?? 0) >= 1024 ? Translation.tr("%1k ctx").arg(Math.round(row.info.contextLength / 1024)) : Translation.tr("%1 ctx").arg(row.info?.contextLength ?? 0)
                         }
                     }
                 }

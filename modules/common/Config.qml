@@ -95,6 +95,12 @@ Singleton {
                     property bool runCommands: true  // run_shell_command (each command asks first)
                 }
                 property string vllmEndpoint: "http://localhost:8000"
+                // Ollama started and managed by the shell (Intelligence > model list > manage)
+                property JsonObject ollama: JsonObject {
+                    property string modelsDir: ""    // empty = ~/.ollama/models
+                    property string modelsMount: ""  // must be mounted before Ollama starts ("" = no check)
+                    property bool autostart: false   // start Ollama together with the shell
+                }
                 // Extra LOCAL models (OpenAI-compatible endpoint on localhost), e.g.
                 // { "name": "LM Studio", "model": "qwen2.5-7b", "endpoint": "http://localhost:1234/v1/chat/completions" }
                 // Online endpoints are ignored.
