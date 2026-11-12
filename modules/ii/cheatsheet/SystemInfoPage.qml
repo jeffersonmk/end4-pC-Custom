@@ -35,6 +35,10 @@ Item {
     onActiveChanged: active ? MegaCloud.consumers++ : MegaCloud.consumers--
     Component.onCompleted: if (active) MegaCloud.consumers++
     Component.onDestruction: if (active) MegaCloud.consumers--
+    // Drive health (SMART via UDisks, no root): {block name: entry} from scripts/hardware/diskhealth.py
+    property var healthByName: ({})
+    property bool healthLoaded: false
+    readonly property string healthScriptPath: FileUtils.trimFileProtocol(`${Directories.scriptPath}/hardware/diskhealth.py`)
     readonly property var gpuSpec: specs?.gpus?.[0] ?? null
     readonly property var gpuLive: live?.gpus?.[0] ?? null
 
@@ -68,6 +72,83 @@ Item {
         if (seconds == null) return "--";
         const d = Math.floor(seconds / 86400), h = Math.floor(seconds % 86400 / 3600), m = Math.floor(seconds % 3600 / 60);
         return d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+    }
+    function healthColor(verdict) {
+        if (verdict === "bad") return Appearance.colors.colError;
+        if (verdict === "caution") return ColorUtils.mix(Appearance.colors.colError, Appearance.colors.colPrimary, 0.5);
+        if (verdict === "good") return Appearance.colors.colPrimary;
+        return Appearance.colors.colSubtext;
+    }
+    function healthIcon(verdict) {
+        return verdict === "bad" ? "error" : verdict === "caution" ? "warning" : verdict === "good" ? "check_circle" : "help";
+    }
+    function healthLabel(verdict) {
+        return verdict === "bad" ? Translation.tr("Bad") : verdict === "caution" ? Translation.tr("Caution")
+            : verdict === "good" ? Translation.tr("Good") : Translation.tr("Unknown");
+    }
+    // Short phrase for why the verdict is not "good" (codes come from diskhealth.py reasons[])
+    function reasonText(code) {
+        switch (code) {
+        case "failing": return Translation.tr("The drive reports it is failing");
+        case "attr_failing": return Translation.tr("A SMART attribute is below its threshold");
+        case "past_failure": return Translation.tr("A SMART attribute failed in the past");
+        case "critical_warning": return Translation.tr("Critical warning from the drive");
+        case "spare_low": return Translation.tr("Spare blocks are almost used up");
+        case "wear": return Translation.tr("Little life left");
+        case "media_errors": return Translation.tr("Media errors");
+        case "temp_high": return Translation.tr("Running too hot");
+        case "reallocated": return Translation.tr("Reallocated sectors");
+        case "pending": return Translation.tr("Pending sectors");
+        case "uncorrectable": return Translation.tr("Uncorrectable sectors");
+        }
+        return code;
+    }
+    // Label + plain-language hint for each metric row (codes come from diskhealth.py metrics[])
+    function metricInfo(code) {
+        switch (code) {
+        case "critical_warning": return [Translation.tr("Critical warnings"), Translation.tr("Flags the drive raises itself when something is wrong. Should be 0.")];
+        case "wear_used": return [Translation.tr("Wear used"), Translation.tr("How much of the rated endurance has been used. The drive keeps working past 100%, but it is no longer trusted.")];
+        case "life_left": return [Translation.tr("Life left"), Translation.tr("Remaining endurance as reported by the SSD.")];
+        case "spare": return [Translation.tr("Spare blocks"), Translation.tr("Reserve used to replace worn-out cells. Bad when it drops to the limit shown.")];
+        case "media_errors": return [Translation.tr("Media errors"), Translation.tr("Data integrity errors found by the drive. Should be 0.")];
+        case "temperature": return [Translation.tr("Temperature"), Translation.tr("Current temperature read from the drive.")];
+        case "error_log": return [Translation.tr("Error log entries"), Translation.tr("Entries in the drive's own error log. Often harmless, mostly from rejected commands.")];
+        case "unsafe_shutdowns": return [Translation.tr("Unexpected power loss"), Translation.tr("Times the power was cut without a clean shutdown. Informational.")];
+        case "power_cycles": return [Translation.tr("Power cycles"), Translation.tr("Times the drive was switched on. Informational.")];
+        case "reallocated": return [Translation.tr("Reallocated sectors"), Translation.tr("Bad sectors the drive replaced with spares. Should be 0; a growing number means the drive is dying.")];
+        case "reallocated_events": return [Translation.tr("Reallocation events"), Translation.tr("How many times a sector was remapped. Informational.")];
+        case "pending": return [Translation.tr("Pending sectors"), Translation.tr("Sectors waiting to be remapped because they could not be read. Should be 0.")];
+        case "uncorrectable": return [Translation.tr("Uncorrectable sectors"), Translation.tr("Sectors that could not be read or fixed. Should be 0.")];
+        case "crc_errors": return [Translation.tr("Cable CRC errors"), Translation.tr("Transfer errors between drive and board, usually a cable or connector. Old counts do not go away.")];
+        }
+        return [code, ""];
+    }
+    function metricValue(m) {
+        if (m.value == null) return "--";
+        if (m.unit === "C") return root.temp(m.value);
+        if (m.unit === "%") return `${m.value}%`;
+        return String(m.value);
+    }
+    function metricLevelIcon(level) {
+        return level === "bad" ? "error" : level === "caution" ? "warning" : level === "ok" ? "check_circle" : "info";
+    }
+    function metricLevelColor(level) {
+        return level === "info" ? Appearance.colors.colSubtext : root.healthColor(level === "ok" ? "good" : level);
+    }
+    function hoursText(h) {
+        if (h == null) return "--";
+        return h >= 24 * 365 * 2 ? Translation.tr("%1 years powered on").arg((h / 8760).toFixed(1))
+            : Translation.tr("%1 h powered on").arg(h);
+    }
+    function writtenText(bytes) {
+        if (bytes == null) return "--";
+        const tb = bytes / 1e12;
+        return Translation.tr("%1 written").arg(tb >= 1 ? `${tb.toFixed(tb >= 100 ? 0 : 1)} TB` : `${Math.round(bytes / 1e9)} GB`);
+    }
+    function agoText(epoch) {
+        if (!epoch) return "--";
+        const m = Math.max(0, Math.round((Date.now() / 1000 - epoch) / 60));
+        return m < 1 ? Translation.tr("just now") : m < 90 ? Translation.tr("%1 min ago").arg(m) : Translation.tr("%1 h ago").arg(Math.round(m / 60));
     }
     function pushHistory(list, value) {
         const next = list.concat([Math.max(0, Math.min(1, value))]);
@@ -106,6 +187,28 @@ Item {
         triggeredOnStart: true
         interval: root.interval
         onTriggered: if (!liveProc.running) liveProc.running = true
+    }
+    Process {
+        id: healthProc
+        command: ["python3", root.healthScriptPath]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const map = {};
+                    for (const d of JSON.parse(text).drives ?? []) map[d.name] = d;
+                    root.healthByName = map;
+                } catch (e) { console.warn("[Cheatsheet/System] health:", e); }
+                root.healthLoaded = true;
+            }
+        }
+    }
+    // SMART values change slowly (UDisks refreshes them every few minutes): once a minute is plenty
+    Timer {
+        running: root.active
+        repeat: true
+        triggeredOnStart: true
+        interval: 60000
+        onTriggered: if (!healthProc.running) healthProc.running = true
     }
 
     // ---- layout
@@ -705,6 +808,7 @@ Item {
     component DriveCard: Rectangle {
         id: driveCard
         property var drive
+        readonly property var health: root.healthByName[driveCard.drive?.name] ?? null
         implicitHeight: driveColumn.implicitHeight + 24
         radius: Appearance.rounding.normal
         color: Appearance.colors.colLayer2
@@ -744,11 +848,17 @@ Item {
                     }
                 }
                 MiniStat {
-                    visible: driveCard.drive?.temp != null
+                    readonly property var shownTemp: driveCard.drive?.temp ?? driveCard.health?.temp ?? null
+                    visible: shownTemp != null
                     icon: "thermostat"
-                    text: root.temp(driveCard.drive?.temp)
+                    text: root.temp(shownTemp)
                     color: Appearance.colors.colLayer1
                 }
+            }
+
+            DiskHealth {
+                visible: root.healthLoaded
+                info: driveCard.health
             }
 
             Repeater {
@@ -776,6 +886,198 @@ Item {
                     color: Appearance.colors.colSubtext
                     font.pixelSize: Appearance.font.pixelSize.smaller
                 }
+            }
+        }
+    }
+
+    // SMART health block of a drive card: verdict badge, life bar, key numbers and an expandable list
+    component DiskHealth: ColumnLayout {
+        id: dh
+        property var info
+        property bool expanded: false
+        readonly property bool available: info != null && info.supported === true
+        readonly property string verdict: available ? info.verdict : "unknown"
+        readonly property color accent: root.healthColor(verdict)
+        Layout.fillWidth: true
+        spacing: 8
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+            Rectangle {
+                implicitHeight: 28
+                implicitWidth: badgeRow.implicitWidth + 18
+                radius: Appearance.rounding.full
+                color: ColorUtils.transparentize(dh.accent, 0.82)
+                Row {
+                    id: badgeRow
+                    anchors.centerIn: parent
+                    spacing: 5
+                    MaterialSymbol {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.healthIcon(dh.verdict)
+                        fill: 1
+                        iconSize: 16
+                        color: dh.accent
+                    }
+                    StyledText {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: dh.available ? Translation.tr("Health: %1").arg(root.healthLabel(dh.verdict)) : Translation.tr("SMART not available")
+                        color: dh.accent
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                    }
+                }
+            }
+            StyledText {
+                Layout.fillWidth: true
+                visible: dh.available && (dh.info.reasons?.length ?? 0) > 0
+                text: (dh.info?.reasons ?? []).map(r => root.reasonText(r.code)).join(" · ")
+                elide: Text.ElideRight
+                color: dh.accent
+                font.pixelSize: Appearance.font.pixelSize.smaller
+            }
+            Item { Layout.fillWidth: true; visible: !(dh.available && (dh.info.reasons?.length ?? 0) > 0) }
+            MouseArea {
+                visible: dh.available
+                implicitWidth: chevronRow.implicitWidth
+                implicitHeight: 28
+                cursorShape: Qt.PointingHandCursor
+                onClicked: dh.expanded = !dh.expanded
+                Row {
+                    id: chevronRow
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 2
+                    StyledText {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Translation.tr("Details")
+                        color: Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                    }
+                    MaterialSymbol {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: dh.expanded ? "expand_less" : "expand_more"
+                        iconSize: 18
+                        color: Appearance.colors.colSubtext
+                    }
+                }
+            }
+        }
+
+        // Remaining life bar (only when the drive reports it)
+        ColumnLayout {
+            visible: dh.available && dh.info.health != null
+            Layout.fillWidth: true
+            spacing: 5
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 6
+                MaterialSymbol {
+                    text: "favorite"
+                    iconSize: 16
+                    color: Appearance.colors.colSubtext
+                }
+                StyledText {
+                    Layout.fillWidth: true
+                    text: Translation.tr("Life left")
+                    color: Appearance.colors.colOnLayer1
+                    font.pixelSize: Appearance.font.pixelSize.small
+                }
+                StyledText {
+                    text: `${dh.info?.health ?? 0}%`
+                    color: Appearance.colors.colOnLayer1
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    font.family: Appearance.font.family.numbers
+                }
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: 8
+                radius: height / 2
+                color: Appearance.colors.colSecondaryContainer
+                Rectangle {
+                    height: parent.height
+                    width: Math.max(height, parent.width * (dh.info?.health ?? 0) / 100)
+                    radius: height / 2
+                    color: dh.accent
+                    Behavior on width {
+                        NumberAnimation { duration: 500; easing.type: Easing.OutCubic }
+                    }
+                }
+            }
+        }
+
+        Flow {
+            visible: dh.available
+            Layout.fillWidth: true
+            spacing: 6
+            MiniStat {
+                visible: dh.info?.power_on_hours != null
+                icon: "schedule"
+                text: root.hoursText(dh.info?.power_on_hours)
+                color: Appearance.colors.colLayer1
+            }
+            MiniStat {
+                visible: dh.info?.written != null
+                icon: "edit"
+                text: root.writtenText(dh.info?.written)
+                color: Appearance.colors.colLayer1
+            }
+        }
+
+        // Expanded details: one row per SMART metric with a plain-language hint
+        ColumnLayout {
+            visible: dh.available && dh.expanded
+            Layout.fillWidth: true
+            spacing: 8
+            Repeater {
+                model: dh.available ? dh.info.metrics.filter(m => m.code !== "life_left") : []
+                delegate: RowLayout {
+                    id: metricRow
+                    required property var modelData
+                    readonly property var labels: root.metricInfo(modelData.code)
+                    Layout.fillWidth: true
+                    spacing: 8
+                    MaterialSymbol {
+                        Layout.alignment: Qt.AlignTop
+                        text: root.metricLevelIcon(metricRow.modelData.level)
+                        fill: 1
+                        iconSize: 16
+                        color: root.metricLevelColor(metricRow.modelData.level)
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 1
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: metricRow.labels[0]
+                            color: Appearance.colors.colOnLayer1
+                            font.pixelSize: Appearance.font.pixelSize.small
+                        }
+                        StyledText {
+                            Layout.fillWidth: true
+                            visible: metricRow.labels[1].length > 0
+                            text: metricRow.labels[1]
+                            wrapMode: Text.WordWrap
+                            color: Appearance.colors.colSubtext
+                            font.pixelSize: Appearance.font.pixelSize.smaller
+                        }
+                    }
+                    StyledText {
+                        Layout.alignment: Qt.AlignTop
+                        text: root.metricValue(metricRow.modelData)
+                        color: metricRow.modelData.level === "ok" || metricRow.modelData.level === "info"
+                            ? Appearance.colors.colOnLayer1 : root.metricLevelColor(metricRow.modelData.level)
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        font.family: Appearance.font.family.numbers
+                    }
+                }
+            }
+            StyledText {
+                Layout.fillWidth: true
+                text: Translation.tr("Last SMART reading: %1 · read from UDisks, nothing is written to the drive").arg(root.agoText(dh.info?.updated))
+                wrapMode: Text.WordWrap
+                color: Appearance.colors.colSubtext
+                font.pixelSize: Appearance.font.pixelSize.smaller
             }
         }
     }
