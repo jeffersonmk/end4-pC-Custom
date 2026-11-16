@@ -81,6 +81,19 @@ def button_name(code):
     return name
 
 
+# Xbox pads (xpad / xpadneo / hid-microsoft) report their left face button "X" as BTN_X
+# (= BTN_NORTH) and the top one "Y" as BTN_Y (= BTN_WEST) - the legacy letter codes, not the
+# physical position. The shell works by position (BTN_WEST = left, BTN_NORTH = top, as on
+# PlayStation), so Xbox presses are swapped to match.
+XBOX_POSITION_SWAP = {ecodes.BTN_NORTH: "BTN_WEST", ecodes.BTN_WEST: "BTN_NORTH"}
+
+
+def positional_button(code, brand):
+    if brand == "xbox" and code in XBOX_POSITION_SWAP:
+        return XBOX_POSITION_SWAP[code]
+    return button_name(code)
+
+
 def brand_of(dev):
     vendor = getattr(dev.info, "vendor", 0)
     if vendor in VENDOR_BRANDS:
@@ -539,7 +552,8 @@ def main():
                         elif ev.value == 0:
                             nav.release(source)
                     elif ev.value == 1:
-                        emit({"event": "button", "button": button_name(ev.code), "brand": brand_of(dev)})
+                        brand = brand_of(dev)
+                        emit({"event": "button", "button": positional_button(ev.code, brand), "brand": brand})
                 elif ev.type == ecodes.EV_ABS and nav_on and mode == "listen":
                     if ev.code in (ecodes.ABS_HAT0X, ecodes.ABS_HAT0Y):
                         nav.hat(path, ev.code, ev.value)
