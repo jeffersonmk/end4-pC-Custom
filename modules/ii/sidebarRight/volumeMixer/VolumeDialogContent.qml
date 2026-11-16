@@ -10,9 +10,9 @@ import Quickshell.Services.Pipewire
 ColumnLayout {
     id: root
     required property bool isSink
-    readonly property list<var> appPwNodes: isSink ? Audio.outputAppNodes : Audio.inputAppNodes
+    readonly property list<string> appGroupKeys: isSink ? Audio.outputAppGroupKeys : Audio.inputAppGroupKeys
     readonly property list<var> devices: isSink ? Audio.outputDevices : Audio.inputDevices
-    readonly property bool hasApps: appPwNodes.length > 0
+    readonly property bool hasApps: appGroupKeys.length > 0
     spacing: 16
 
     DialogSectionListView {
@@ -20,15 +20,16 @@ ColumnLayout {
         topMargin: 14
 
         model: ScriptModel {
-            values: root.appPwNodes
+            values: root.appGroupKeys
         }
         delegate: VolumeMixerEntry {
             anchors {
                 left: parent?.left
                 right: parent?.right
             }
-            required property var modelData
-            node: modelData
+            required property string modelData
+            isSink: root.isSink
+            groupKey: modelData
         }
         PagePlaceholder {
             icon: "widgets"

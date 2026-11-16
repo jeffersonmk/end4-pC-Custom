@@ -97,6 +97,7 @@ Item {
         return toggled ?? list[0] ?? null;
     }
     // Dropdown whose list is open (navigation goes to the list instead of the screen)
+    readonly property bool hasPadAction: current !== null && current.hasPadAction === true && typeof current.padAction === "function"
     readonly property bool comboOpen: current !== null && isComboBox(current) && (current.popup?.visible ?? false)
 
     Connections {
@@ -227,6 +228,10 @@ Item {
         function onButtonPressed(button) {
             switch (button) {
                 case "BTN_SOUTH": root.activate(); break;
+                case "BTN_WEST":
+                    // A focused target can offer a secondary action (e.g. mute on an app's volume slider)
+                    if (root.hasPadAction) root.showToast(root.current.padAction());
+                    break;
                 case "BTN_EAST":
                 case "BTN_START":
                     if (root.comboOpen) root.current.popup.close();
@@ -345,6 +350,11 @@ Item {
             Hint {
                 label: root.comboOpen ? Translation.tr("Cancel") : Translation.tr("Close")
                 FaceBadge { button: "BTN_EAST" }
+            }
+            Hint {
+                visible: root.hasPadAction
+                label: Translation.tr("Mute")
+                FaceBadge { button: "BTN_WEST" }
             }
             Hint {
                 visible: Gamepad.pausedGame.length > 0

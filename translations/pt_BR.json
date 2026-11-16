@@ -1104,5 +1104,8 @@
   "Uncorrectable sectors": "Setores incorrigíveis",
   "Unexpected power loss": "Queda de energia inesperada",
   "Wear used": "Desgaste usado",
-  "just now": "agora mesmo"
+  "just now": "agora mesmo",
+  "Mute": "Silenciar",
+  "Click to mute": "Clique para silenciar",
+  "Click to unmute": "Clique para reativar o som"
 }

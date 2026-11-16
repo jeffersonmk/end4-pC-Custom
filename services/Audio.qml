@@ -35,6 +35,39 @@ Singleton {
             return root.correctType(node, isSink) && node.isStream
         })
     }
+    // Wine/Proton games open several streams at once (one per audio API they use), and each
+    // would get its own mixer row. Streams of the same process are shown as one app when that
+    // process is a Wine one. Everything else (e.g. one stream per browser tab) stays separate.
+    function isWineStream(node) {
+        const p = node.properties;
+        const text = `${p["application.process.binary"] ?? ""} ${p["application.name"] ?? ""}`.toLowerCase();
+        return /wine|proton|preloader|\.exe/.test(text);
+    }
+    function appGroups(isSink) {
+        const nodes = root.appNodes(isSink);
+        const winePids = new Set();
+        for (const node of nodes) {
+            const pid = node.properties["application.process.id"];
+            if (pid && root.isWineStream(node)) winePids.add(String(pid));
+        }
+        const groups = [];
+        const byKey = {};
+        for (const node of nodes) {
+            const pid = String(node.properties["application.process.id"] ?? "");
+            const key = winePids.has(pid) ? `pid:${pid}` : `node:${node.id}`;
+            if (!byKey[key]) {
+                byKey[key] = { key: key, nodes: [] };
+                groups.push(byKey[key]);
+            }
+            byKey[key].nodes.push(node);
+        }
+        return groups;
+    }
+    readonly property list<string> outputAppGroupKeys: root.appGroups(true).map(g => g.key)
+    readonly property list<string> inputAppGroupKeys: root.appGroups(false).map(g => g.key)
+    function appGroupNodes(isSink, key) {
+        return root.appGroups(isSink).find(g => g.key === key)?.nodes ?? [];
+    }
     function devices(isSink) {
         return Pipewire.nodes.values.filter(node => {
             return root.correctType(node, isSink) && !node.isStream
