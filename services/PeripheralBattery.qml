@@ -15,6 +15,8 @@ Singleton {
 
     readonly property var devices: UPower.devices.values.filter(dev => dev.isPresent && root.kinds.includes(dev.type))
 
+    readonly property var controllers: UPower.devices.values.filter(dev => dev.isPresent && dev.type === UPowerDeviceType.GamingInput && dev.percentage > 0)
+
     function isDraining(dev) {
         return dev.state !== UPowerDeviceState.Charging && dev.state !== UPowerDeviceState.FullyCharged
     }

@@ -32,8 +32,8 @@ Item {
     readonly property bool trayHasItems: SystemTray.items.values.length > 0
 
     function filterLayout(layout) {
-        if (trayHasItems) return layout
-        return layout.filter(name => name !== "sysTray")
+        return layout.filter(name => (name !== "sysTray" || trayHasItems)
+            && (name !== "controllerBattery" || PeripheralBattery.controllers.length > 0))
     }
 
     readonly property var effectiveLeftLayout:   filterLayout(Config.options.bar.layouts.leftLayout)
