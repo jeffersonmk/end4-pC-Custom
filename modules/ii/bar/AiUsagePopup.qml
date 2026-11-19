@@ -214,29 +214,6 @@ StyledPopup {
                                                    : `${Number(extra.spent ?? 0).toFixed(2)}${cur}`;
                     }
                 }
-
-                // Claude Code sessions running on this PC (local)
-                Repeater {
-                    model: provider.pid === "claude" ? ClaudeUsage.sessions : []
-                    delegate: StyledPopupValueRow {
-                        required property var modelData
-                        Layout.fillWidth: true
-                        Layout.leftMargin: 8
-                        Layout.rightMargin: 8
-                        icon: modelData.status === "busy" ? "progress_activity" : "terminal"
-                        label: modelData.name || Translation.tr("Session")
-                        value: modelData.status === "busy" ? Translation.tr("Working") : Translation.tr("Idle")
-                    }
-                }
-                StyledPopupValueRow {
-                    visible: provider.pid === "claude" && ClaudeUsage.activeSessions === 0
-                    Layout.fillWidth: true
-                    Layout.leftMargin: 8
-                    Layout.rightMargin: 8
-                    icon: "bedtime"
-                    label: Translation.tr("No active Claude Code sessions")
-                    value: ""
-                }
             }
         }
     }
