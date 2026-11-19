@@ -21,7 +21,7 @@ source "$SCRIPT_DIR/lib/config.sh"
 mkdir -p "$LOCAL_PRESETS_DIR" "$ONLINE_PRESETS_DIR" "$IMPORTED_PRESETS_DIR"
 
 # Blacklist: appearance.fonts (UI font families can break the layout) + General (time/battery/audio/sounds/language/workSafety) + Services (ai/networking/search/screenRecord/screenSnip/updates/bar.weather) + Hyprland non-styling
-# Keep: appearance/background/bar(non-weather)/dock/lock/overview/panelFamily etc. + hyprland.decoration/gaps/animations
+# Keep: appearance/background/bar(non-weather)/lock/overview/panelFamily etc. + hyprland.decoration/gaps/animations
 # Note: apps/profile/wallpaperSelector are NOT blacklisted here (would make preset look empty) - only General+Services per Settings tabs
 BLACKLIST_FILTER='del(._presetMeta)
   | del(.time, .battery, .audio, .sounds, .language, .workSafety)
@@ -30,11 +30,11 @@ BLACKLIST_FILTER='del(._presetMeta)
   | del(.appearance.fonts)
   | del(.profile.onlinePresets)
   | del(.hyprland.input, .hyprland.autostartApps, .hyprland.general.layout)
-  | del(.dock.pinnedApps, .launcher.pinnedApps, .tray.pinnedItems)
+  | del(.launcher.pinnedApps, .tray.pinnedItems)
   | del(.sidebar.booru, .wallpaperSelector.userPath)
   | walk(if type == "object" then with_entries(select(.key | test("^(.*api[-_]?key|secret|password|token|username|e-?mail)$"; "i") | not)) else . end)'
 
-SHARE_FILTER='with_entries(select(.key as $k | ["appearance","background","bar","calendar","crosshair","dock","interactions","launcher","light","lock","media","notifications","osd","osk","overlay","overview","panelFamily","profile","regionSelector","resources","settings","sidebar","tray","wallpaperSelector","windows","hyprland"] | index($k)))
+SHARE_FILTER='with_entries(select(.key as $k | ["appearance","background","bar","calendar","crosshair","interactions","launcher","light","lock","media","notifications","osd","osk","overlay","overview","panelFamily","profile","regionSelector","resources","settings","sidebar","tray","wallpaperSelector","windows","hyprland"] | index($k)))
   | if (.hyprland | type) == "object" then .hyprland |= with_entries(select(.key as $k | ["decoration","gaps","animations","general"] | index($k))) else . end'
 
 action="$1"

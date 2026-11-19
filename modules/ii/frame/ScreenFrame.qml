@@ -29,9 +29,8 @@ Scope {
 
     function edgeNeedsInput(side) {
         if (!frameVisibleFor(side)) return false
-        const dockWants = Config.options.dock.enable && Config.options.dock.hoverToReveal && Config.options.dock.position === side
         const barWants = Config.options.bar.autoHide.enable && root.barPosition === side
-        return dockWants || barWants
+        return barWants
     }
 
     component FrameHoverArea: MouseArea {
