@@ -12,7 +12,7 @@ Item {
     property color contentColor: Appearance.colors.colOnLayer0
     property bool contentColorOverridden: false
     property bool vertical: Config.options.bar.vertical
-    property bool isMaterial: Config.options.bar.cornerStyle === 3 || Config.options.bar.cornerStyle === 4
+    property bool isMaterial: Appearance.barMaterialLook
     property bool mirrored: false
     readonly property MprisPlayer activePlayer: MprisController.activePlayer
     readonly property bool isPlaying: activePlayer?.isPlaying ?? false

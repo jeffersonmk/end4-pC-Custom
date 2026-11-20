@@ -438,6 +438,14 @@ Singleton {
 
     
 
+    // The Material look of the bar widgets (highlighted pills, round buttons): always
+    // in M3 / M3 Hug, and optionally in the Hug styles (horizontal bar only)
+    readonly property bool barMaterialLook: {
+        const style = Config.options.bar.cornerStyle
+        if (style === 3 || style === 4) return true
+        return (style === 0 || style === 6) && Config.options.bar.hugHighlight && !Config.options.bar.vertical
+    }
+
     sizes: QtObject {
         property real baseBarHeight: 40
         property real barHeight: Config.options.bar.cornerStyle === 1 ? 

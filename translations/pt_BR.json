@@ -1134,5 +1134,7 @@
   "Theme": "Tema",
   "No permission to write to the controller (hidraw). Install the steam-devices udev rules.": "Sem permissão para escrever no controle (hidraw). Instale as regras udev do steam-devices.",
   "Could not change the light": "Não foi possível mudar a luz",
-  "DualSense light bar": "Luz do DualSense"
+  "DualSense light bar": "Luz do DualSense",
+  "Highlight widgets in Hug styles": "Destacar widgets nos estilos Hug",
+  "Hug and Split Hug (horizontal bar): widgets sit on highlighted Material pills\nand the power button becomes a round button, like in M3 and M3 Hug.": "Hug e Split Hug (barra horizontal): os widgets ficam em pílulas Material destacadas\ne o botão de desligar vira um botão redondo, como no M3 e M3 Hug."
 }

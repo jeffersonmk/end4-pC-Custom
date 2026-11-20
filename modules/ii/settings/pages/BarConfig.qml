@@ -266,6 +266,16 @@ ContentPage {
                         { displayName: Translation.tr("Panel"), icon: "toolbar",   value: 5 }
                     ]
                 }
+                ConfigSwitch {
+                    buttonIcon: "stars"
+                    text: Translation.tr("Highlight widgets in Hug styles")
+                    enabled: (Config.options.bar.cornerStyle === 0 || Config.options.bar.cornerStyle === 6) && !Config.options.bar.vertical
+                    checked: Config.options.bar.hugHighlight
+                    onCheckedChanged: { Config.options.bar.hugHighlight = checked; }
+                    StyledToolTip {
+                        text: Translation.tr("Hug and Split Hug (horizontal bar): widgets sit on highlighted Material pills\nand the power button becomes a round button, like in M3 and M3 Hug.")
+                    }
+                }
                 ConfigSelectionArray {
                     text: Translation.tr("Group style")
                     icon: "tab_group"

@@ -14,7 +14,7 @@ Item {
     property bool contentColorOverridden: false
     signal styleEditorRequested()
     property bool vertical: Config.options.bar.vertical
-    property bool isMaterial: Config.options.bar.cornerStyle === 3 || Config.options.bar.cornerStyle === 4
+    property bool isMaterial: Appearance.barMaterialLook
 
     readonly property var controllers: PeripheralBattery.controllers
     readonly property bool hasControllers: controllers.length > 0

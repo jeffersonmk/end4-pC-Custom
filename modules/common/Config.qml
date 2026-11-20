@@ -550,6 +550,8 @@ Singleton {
                     }
                 }
                 property bool showFrame: false
+                // Hug / Split Hug: highlighted Material pills and round power button, like M3
+                property bool hugHighlight: false
                 property real frameThickness: 4
                 property string frameColor: "black"
                 property bool followFrameColor: false

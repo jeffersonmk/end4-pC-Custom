@@ -51,8 +51,11 @@ Item {
         return prevCount % 2 === 1
     }
 
+    // Look of the widgets; isMaterial above is only the M3 layout
+    readonly property bool materialLook: Appearance.barMaterialLook
+
     function shouldPaintMaterialPill(name) {
-        if (!root.isMaterial) return false;
+        if (!root.materialLook) return false;
         const blacklist = ["workspaces", "divisor", "powerButton", "leftSidebarButton", "activeWindow", "dynamicIsland", "avatar"];
         if (blacklist.includes(name)) {
             return false;
@@ -61,7 +64,7 @@ Item {
     }
 
     function getMaterialPillColor(name) {
-        if (!root.isMaterial) return Appearance.colors.colPrimaryContainer;
+        if (!root.materialLook) return Appearance.colors.colPrimaryContainer;
         switch(name) {
             case "media":
             case "sysTray":
@@ -282,6 +285,8 @@ Item {
                         currentIndex: index
                         widgetName: modelData
                         totalCount: root.effectiveLeftLayout.length
+                        paintMaterialPill: root.shouldPaintMaterialPill(modelData)
+                        bgColor: root.getMaterialPillColor(modelData)
                         Loader {
                             Layout.fillHeight: true
                             source: root.getWidgetUrl(modelData)
@@ -429,6 +434,8 @@ Item {
                         widgetName: modelData
                         paintBackground: modelData !== "dynamicIsland"
                         totalCount: root.effectiveMiddleLayout.length
+                        paintMaterialPill: root.shouldPaintMaterialPill(modelData)
+                        bgColor: root.getMaterialPillColor(modelData)
                         Loader {
                             Layout.fillHeight: true
                             source: root.getWidgetUrl(modelData)
@@ -549,6 +556,8 @@ Item {
                         currentIndex: index
                         widgetName: modelData
                         totalCount: root.effectiveRightLayout.length
+                        paintMaterialPill: root.shouldPaintMaterialPill(modelData)
+                        bgColor: root.getMaterialPillColor(modelData)
                         Loader {
                             Layout.fillHeight: true
                             source: root.getWidgetUrl(modelData)

@@ -12,7 +12,7 @@ RippleButton {
     property bool aiChatEnabled: Config.options.policies.ai !== 0
     property bool mediaEnabled: Config.options.sidebar.media.enable
     property bool animeEnabled: Config.options.policies.weeb !== 0
-    property bool isMaterial: Config.options.bar.cornerStyle === 3 || Config.options.bar.cornerStyle === 4
+    property bool isMaterial: Appearance.barMaterialLook
     property real buttonPadding: 5
     readonly property color iconColor: {
         const name = Config.options.custom.iconColor || "onLayer0"

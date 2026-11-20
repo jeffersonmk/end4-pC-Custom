@@ -12,7 +12,7 @@ MouseArea {
     signal styleEditorRequested()
 
     property bool vertical: false
-    property bool isMaterial: Config.options.bar.cornerStyle === 3 || Config.options.bar.cornerStyle === 4
+    property bool isMaterial: Appearance.barMaterialLook
     property bool hovered: containsMouse
     readonly property var screen: root.QsWindow?.window?.screen
     readonly property int screenWidth: screen?.width ?? 1920

@@ -14,7 +14,7 @@ MouseArea {
     property bool contentColorOverridden: false
     signal styleEditorRequested()
     property bool vertical: Config.options.bar.vertical
-    property bool isMaterial: Config.options.bar.cornerStyle === 3 || Config.options.bar.cornerStyle === 4
+    property bool isMaterial: Appearance.barMaterialLook
     property bool borderless: Config.options.bar.borderless
 
     implicitWidth: vertical ? Appearance.sizes.verticalBarWidth : (contentLoader.item?.implicitWidth ?? 0) 

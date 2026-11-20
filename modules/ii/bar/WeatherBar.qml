@@ -13,7 +13,7 @@ MouseArea {
     signal styleEditorRequested()
     property bool hovered: false
     property bool vertical: Config.options.bar.vertical
-    property bool isMaterial: Config.options.bar.cornerStyle === 3 || Config.options.bar.cornerStyle === 4
+    property bool isMaterial: Appearance.barMaterialLook
 
     implicitWidth: vertical ? 32 : isMaterial ? (contentLoader.item?.implicitWidth ?? 0) : (contentLoader.item?.implicitWidth + 8 ?? 0)
     implicitHeight: vertical ? (contentLoader.item?.implicitHeight ?? 0) : Appearance.sizes.barHeight
