@@ -21,7 +21,7 @@ Item {
     readonly property color occupiedColor: root.host.contentColorOverridden ? root.host.contentColor : Appearance.colors.colOnLayer1
     readonly property color emptyColor: root.host.contentColorOverridden ? Qt.alpha(root.host.contentColor, 0.35) : Appearance.colors.colOnLayer1Inactive
 
-    readonly property real gnomeExtra: root.style === "gnome" ? 16 : 0
+    readonly property real gnomeExtra: root.style === "gnome" ? (root.host.capsule ? 14 : 16) : 0
 
     implicitWidth: root.vertical ? root.host.barThickness : root.count * root.slot + root.gnomeExtra
     implicitHeight: root.vertical ? root.count * root.slot + root.gnomeExtra : root.host.barThickness
@@ -83,10 +83,12 @@ Item {
                 id: gnomeMark
 
                 Rectangle {
-                    readonly property real longSide: cell.active ? 26 : 10
-                    width: root.vertical ? 10 : longSide
-                    height: root.vertical ? longSide : 10
-                    radius: 5
+                    // On a capsule the marks are a little bigger: 12 px dots, 26 px active pill
+                    readonly property real thickness: root.host.capsule ? 12 : 10
+                    readonly property real longSide: cell.active ? 26 : thickness
+                    width: root.vertical ? thickness : longSide
+                    height: root.vertical ? longSide : thickness
+                    radius: thickness / 2
                     color: cell.tone
                     opacity: cell.active || cell.isOccupied || cell.hovered ? 1 : 0.8
 

@@ -34,15 +34,21 @@ ButtonMouseArea {
     property int workspaceIndexInGroup: (wsModel.activeNumber - 1) % wsModel.shownCount
     readonly property string style: Config.options.bar.workspaces.style ?? "default"
     readonly property bool altStyle: root.style !== "default"
-    readonly property real slotLength: root.style === "gnome" ? 16 : root.style === "dots" ? 24 : root.style === "ticks" ? 16 : root.workspaceButtonWidth
+    // Capsule: the GNOME / Dots / Ticks indicator sits on a soft rounded capsule
+    readonly property bool capsule: root.altStyle && (Config.options.bar.workspaces.capsule ?? false)
+    readonly property real capsulePad: 3                  // capsule padding along the bar
+    readonly property real capsuleSide: root.style === "ticks" ? 30 : 24  // capsule thickness
+    readonly property real capsuleOffset: root.capsule && altLoader.item
+        ? ((root.vertical ? root.height - altLoader.item.implicitHeight : root.width - altLoader.item.implicitWidth) / 2) : 0
+    readonly property real slotLength: root.style === "gnome" ? (root.capsule ? 15 : 16) : root.style === "dots" ? 24 : root.style === "ticks" ? 16 : root.workspaceButtonWidth
     property real specialTextSize: workspaceButtonWidth * 0.5
 
     Layout.alignment: vertical ? Qt.AlignHCenter : Qt.AlignVCenter
     Layout.fillWidth: vertical
     Layout.fillHeight: !vertical
     readonly property real barThickness: vertical ? Appearance.sizes.verticalBarWidth : Appearance.sizes.barHeight
-    implicitWidth: vertical ? barThickness : (altStyle ? (altLoader.item?.implicitWidth ?? 0) : occupiedIndicators.implicitWidth)
-    implicitHeight: vertical ? (altStyle ? (altLoader.item?.implicitHeight ?? 0) : occupiedIndicators.implicitHeight) : barThickness
+    implicitWidth: vertical ? barThickness : (altStyle ? (altLoader.item?.implicitWidth ?? 0) + (capsule ? capsulePad * 2 : 0) : occupiedIndicators.implicitWidth)
+    implicitHeight: vertical ? (altStyle ? (altLoader.item?.implicitHeight ?? 0) + (capsule ? capsulePad * 2 : 0) : occupiedIndicators.implicitHeight) : barThickness
 
     property real specialBlur: (wsModel.specialWorkspaceActive && !containsMouse) ? 1 : 0
     Behavior on specialBlur {
@@ -53,7 +59,7 @@ ButtonMouseArea {
     acceptedButtons: Qt.LeftButton | Qt.RightButton
     hoverEnabled: true
     property int hoverIndex: {
-        const position = root.vertical ? mouseY : mouseX;
+        const position = (root.vertical ? mouseY : mouseX) - root.capsuleOffset;
         if (root.altStyle && altLoader.item) return altLoader.item.indexAt(position);
         return Math.floor(position / root.slotLength);
     }
@@ -78,6 +84,15 @@ ButtonMouseArea {
             WM.switchWorkspaceRelative("next");
         else if (event.angleDelta.y > 0)
             WM.switchWorkspaceRelative("prev");
+    }
+
+    Rectangle {
+        visible: root.capsule
+        anchors.centerIn: parent
+        width: root.vertical ? root.capsuleSide : (altLoader.item?.implicitWidth ?? 0) + root.capsulePad * 2
+        height: root.vertical ? (altLoader.item?.implicitHeight ?? 0) + root.capsulePad * 2 : root.capsuleSide
+        radius: Math.min(width, height) / 2
+        color: ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.90)
     }
 
     Loader {

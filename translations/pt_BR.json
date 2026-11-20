@@ -1136,5 +1136,7 @@
   "Could not change the light": "Não foi possível mudar a luz",
   "DualSense light bar": "Luz do DualSense",
   "Highlight widgets in Hug styles": "Destacar widgets nos estilos Hug",
-  "Hug and Split Hug (horizontal bar): widgets sit on highlighted Material pills\nand the power button becomes a round button, like in M3 and M3 Hug.": "Hug e Split Hug (barra horizontal): os widgets ficam em pílulas Material destacadas\ne o botão de desligar vira um botão redondo, como no M3 e M3 Hug."
+  "Hug and Split Hug (horizontal bar): widgets sit on highlighted Material pills\nand the power button becomes a round button, like in M3 and M3 Hug.": "Hug e Split Hug (barra horizontal): os widgets ficam em pílulas Material destacadas\ne o botão de desligar vira um botão redondo, como no M3 e M3 Hug.",
+  "Workspaces on a capsule": "Workspaces em uma cápsula",
+  "GNOME, Dots and Ticks styles: the indicator sits on a soft rounded capsule\nand the GNOME dots are a little bigger.": "Estilos GNOME, Pontos e Traços: o indicador fica sobre uma cápsula arredondada suave\ne as bolinhas do GNOME ficam um pouco maiores."
 }

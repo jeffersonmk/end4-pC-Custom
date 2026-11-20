@@ -702,6 +702,15 @@ ContentPage {
                         { displayName: Translation.tr("Ticks"),   icon: "more_vert",             value: "ticks" }
                     ]
                 }
+                ConfigSwitch {
+                    enabled: !page.defaultWorkspacesDesign
+                    buttonIcon: "capsule"; text: Translation.tr("Workspaces on a capsule")
+                    checked: Config.options.bar.workspaces.capsule
+                    onCheckedChanged: { Config.options.bar.workspaces.capsule = checked; }
+                    StyledToolTip {
+                        text: Translation.tr("GNOME, Dots and Ticks styles: the indicator sits on a soft rounded capsule\nand the GNOME dots are a little bigger.")
+                    }
+                }
                 ConfigSpinBox {
                     icon: "view_column"; text: Translation.tr("Workspaces shown")
                     value: Config.options.bar.workspaces.shown
