@@ -415,6 +415,14 @@ ContentPage {
                         Config.options.battery.peripheralNotify = checked;
                     }
                 }
+                ConfigSwitch {
+                    buttonIcon: "battery_charging_full"
+                    text: Translation.tr("Notify when a controller is fully charged")
+                    checked: Config.options.battery.peripheralFullNotify
+                    onCheckedChanged: {
+                        Config.options.battery.peripheralFullNotify = checked;
+                    }
+                }
             }
         }
 

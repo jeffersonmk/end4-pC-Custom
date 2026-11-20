@@ -47,6 +47,7 @@ ShellRoot {
         FirstRunExperience.load()
         ConflictKiller.load()
         Gamepad.load()
+        ControllerLight.load()
         Cliphist.refresh()
         Wallpapers.load()
         Updates.load()

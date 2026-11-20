@@ -668,6 +668,7 @@ Singleton {
                 property int peripheralLow: 20
                 property int peripheralCritical: 5
                 property bool peripheralNotify: true
+                property bool peripheralFullNotify: true
             }
 
             property JsonObject calendar: JsonObject {
@@ -710,6 +711,8 @@ Singleton {
                 // PlayStation / Nintendo pads (which games may read directly via hidraw)
                 property bool pauseGameXbox: false
                 property bool pauseGameDirect: true
+                // DualSense light bar: "default" (leave it), "theme" (wallpaper colour), "off"
+                property string lightMode: "default"
             }
 
             property JsonObject conflictKiller: JsonObject {

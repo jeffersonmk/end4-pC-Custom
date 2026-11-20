@@ -612,6 +612,17 @@ ContentPage {
                     currentValue: Config.options.gamepad.action
                     onSelected: newValue => { Config.options.gamepad.action = newValue }
                 }
+                ConfigSelectionArray {
+                    text: Translation.tr("DualSense light bar")
+                    icon: "lightbulb"
+                    currentValue: Config.options.gamepad.lightMode
+                    onSelected: newValue => { ControllerLight.setMode(newValue) }
+                    options: [
+                        { displayName: Translation.tr("Normal"), icon: "restart_alt", value: "default" },
+                        { displayName: Translation.tr("Theme"),  icon: "palette",     value: "theme" },
+                        { displayName: Translation.tr("Off"),    icon: "light_off",   value: "off" }
+                    ]
+                }
             }
 
             ContentSubsection {
