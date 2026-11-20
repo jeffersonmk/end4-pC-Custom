@@ -29,6 +29,8 @@ Singleton {
         },
         {
             id: "chatgpt", name: "Codex", icon: "openai-symbolic",
+            // The knot is fine-lined: in the bar it uses a bolder copy, a bit larger
+            barIcon: "openai-bold-symbolic", barIconSize: 17,
             showKey: "codexEnabled", appName: Translation.tr("ChatGPT"),
             desktopIds: ["chatgpt", "com.openai.chatgpt", "chatgpt-desktop"],
             commands: ["chatgpt", "chatgpt-desktop"],

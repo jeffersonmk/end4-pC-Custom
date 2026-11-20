@@ -14,6 +14,9 @@ MouseArea {
     property color contentColor: Appearance.colors.colOnLayer1
     property bool contentColorOverridden: false
     property bool vertical: false
+    // On the highlighted pill (M3 look) text and icons use the pill's own "on" colour
+    readonly property color baseColor: root.contentColorOverridden || !Appearance.barMaterialLook
+        ? root.contentColor : Appearance.colors.colOnPrimaryContainer
     readonly property var shownProviders: AiPlanUsage.providers.filter(p => AiPlanUsage.shown(p.id))
 
     visible: shownProviders.length > 0
@@ -57,9 +60,9 @@ MouseArea {
                 readonly property real percent: AiPlanUsage.allowed(modelData.id) ? AiPlanUsage.mainPercent(modelData.id) : -1
                 readonly property bool hasValue: percent >= 0
                 readonly property color itemColor: {
-                    if (!hasValue) return root.contentColorOverridden ? Qt.alpha(root.contentColor, 0.6) : Appearance.colors.colSubtext;
+                    if (!hasValue) return Qt.alpha(root.baseColor, 0.75);
                     if (percent >= 90) return Appearance.colors.colError;
-                    return root.contentColor;
+                    return root.baseColor;
                 }
                 columns: root.vertical ? 1 : 2
                 columnSpacing: 4
@@ -67,9 +70,9 @@ MouseArea {
 
                 CustomIcon {
                     Layout.alignment: Qt.AlignCenter
-                    width: 15
-                    height: 15
-                    source: item.modelData.icon
+                    width: item.modelData.barIconSize ?? 15
+                    height: width
+                    source: item.modelData.barIcon ?? item.modelData.icon
                     colorize: true
                     color: item.itemColor
                 }
